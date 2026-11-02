@@ -68,7 +68,8 @@ function demoDb(): Db {
 let instance: Db | undefined;
 export function db(): Db {
   if (!instance) {
-    const url = process.env.DATABASE_URL;
+    // 環境変数に紛れ込んだ BOM・空白・引用符を除去（貼り付け時の事故対策）
+    const url = process.env.DATABASE_URL?.replace(/^﻿/, "").trim().replace(/^["']|["']$/g, "");
     instance = url ? neonDb(url) : demoDb();
   }
   return instance;
