@@ -1,0 +1,102 @@
+@import "tailwindcss";
+
+/* DBJ デザイントークン（Japanese Minimalism × Modern Enterprise SaaS） */
+@theme {
+  --font-sans: var(--font-inter), var(--font-noto), "Hiragino Sans", "Yu Gothic UI", system-ui, sans-serif;
+
+  --color-canvas: #f8fafc;
+  --color-surface: #ffffff;
+  --color-navy: #163b65;
+  --color-navy-soft: #edf2f8;
+  --color-action: #2563eb;
+  --color-action-hover: #1d4ed8;
+  --color-action-soft: #eff6ff;
+  --color-ink: #172b4d;
+  --color-muted: #64748b;
+  --color-subtle: #94a3b8;
+  --color-line: #e2e8f0;
+  --color-line-soft: #f1f5f9;
+  --color-ok: #16a34a;
+  --color-ok-soft: #f0fdf4;
+  --color-ok-line: #bbf7d0;
+  --color-warn: #d97706;
+  --color-warn-ink: #b45309;
+  --color-warn-soft: #fffbeb;
+  --color-warn-line: #fde68a;
+  --color-bad: #dc2626;
+  --color-bad-soft: #fef2f2;
+  --color-bad-line: #fecaca;
+
+  --radius-card: 10px;
+  --shadow-card: 0 1px 2px rgb(15 23 42 / 0.04), 0 1px 3px rgb(15 23 42 / 0.03);
+  --shadow-pop: 0 8px 24px rgb(15 23 42 / 0.12), 0 2px 6px rgb(15 23 42 / 0.06);
+}
+
+html {
+  -webkit-text-size-adjust: 100%;
+}
+body {
+  background: var(--color-canvas);
+  color: var(--color-ink);
+  font-feature-settings: "palt" 1;
+  line-height: 1.7;
+}
+:focus-visible {
+  outline: 2px solid var(--color-action);
+  outline-offset: 2px;
+}
+
+@utility card {
+  @apply rounded-card border border-line bg-surface shadow-card;
+}
+@utility btn {
+  @apply inline-flex h-9 items-center justify-center gap-1.5 rounded-lg px-3.5 text-sm font-medium whitespace-nowrap transition-colors focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-action disabled:pointer-events-none disabled:opacity-45;
+}
+@utility btn-primary {
+  @apply btn bg-action text-white hover:bg-action-hover;
+}
+@utility btn-navy {
+  @apply btn bg-navy text-white hover:bg-[#0f2d4f];
+}
+@utility btn-secondary {
+  @apply btn border border-line bg-surface text-ink hover:bg-canvas;
+}
+@utility btn-ghost {
+  @apply btn text-muted hover:bg-line-soft hover:text-ink;
+}
+@utility btn-danger {
+  @apply btn bg-bad text-white hover:bg-[#b91c1c];
+}
+@utility btn-sm {
+  @apply h-8 rounded-md px-2.5 text-xs;
+}
+@utility field {
+  @apply h-9 w-full rounded-lg border border-line bg-surface px-3 text-sm text-ink placeholder:text-subtle transition-colors outline-none hover:border-[#cbd5e1] focus:border-action focus:ring-3 focus:ring-action/15 aria-invalid:border-warn aria-invalid:ring-3 aria-invalid:ring-warn/15;
+}
+@utility field-label {
+  @apply mb-1.5 flex items-center gap-1.5 text-[13px] font-medium text-ink;
+}
+@utility tnum {
+  font-variant-numeric: tabular-nums;
+}
+
+/* データテーブル（コンパクト・読みやすさ優先） */
+.dt {
+  @apply w-full border-separate border-spacing-0 text-[13px];
+}
+.dt th {
+  @apply sticky top-0 z-[1] border-b border-line bg-[#f8fafc] px-3 py-2 text-left text-xs font-medium whitespace-nowrap text-muted;
+}
+.dt td {
+  @apply border-b border-line-soft px-3 py-2.5 align-top;
+}
+.dt tbody tr:hover td {
+  @apply bg-[#fafbfd];
+}
+.dt tbody tr:last-child td {
+  @apply border-b-0;
+}
+
+dialog::backdrop {
+  background: rgb(15 23 42 / 0.4);
+}

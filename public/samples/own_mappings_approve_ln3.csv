@@ -1,0 +1,2 @@
+id,match_type,category,spec_code,product_id,own_part_no,direction,status,customer_use,conditions,source_id,approved_by,approved_at,note
+M007,spec,LN EFB,LN3,,DBJ-LN3-EFB,双方向,自社対応確認済み,true,アイドリングストップ車,SRC-DBJ,中野,2026-11-02,端子形状を現物で確認済み

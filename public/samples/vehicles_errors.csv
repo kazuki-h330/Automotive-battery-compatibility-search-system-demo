@@ -1,0 +1,6 @@
+id,maker,car_name,model_code,engine_code,grade_spec,conditions,period_basis,period_from,period_to,period_raw,status,source_id,note
+V013,テスト工業,テストワゴン,,R15T,,,初度登録,2020-01,,2020年1月～,適合確認済み,SRC-DBJ,型式が空
+V014,テスト工業,テストワゴン,DBA-XY14,R15T,,,初度登録,2019/4,,H31.4～,適合確認済み,SRC-DBJ,年月の表記揺れ
+V015,テスト工業,テストワゴン,DBA-XY15,R15T,,,発売,2019,,2019年～,確認済,SRC-DBJ,区分値が不正
+V016,テスト工業,テストワゴン,DBA-XY16,R15T,,,初度登録,2021-02,,2021年2月～,適合確認済み,SRC-UNKNOWN,出典が未登録
+V016,テスト工業,テストワゴン,DBA-XY16,R15T,,,初度登録,2021-02,,2021年2月～,適合確認済み,SRC-DBJ,キー重複
