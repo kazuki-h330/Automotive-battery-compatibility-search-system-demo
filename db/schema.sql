@@ -125,6 +125,16 @@ CREATE TABLE IF NOT EXISTS master_versions (
   UNIQUE (dataset, version_no)
 );
 
+-- バックアップ（全マスターの複製。保持期間を過ぎたものは自動削除）
+CREATE TABLE IF NOT EXISTS backups (
+  id           serial PRIMARY KEY,
+  at           timestamptz NOT NULL DEFAULT now(),
+  trigger_type text NOT NULL,           -- scheduled / manual
+  actor        text,
+  row_count    integer NOT NULL,
+  data         jsonb NOT NULL
+);
+
 -- 回答ログ（画像・個人情報は保存しない）
 CREATE TABLE IF NOT EXISTS answer_logs (
   id              serial PRIMARY KEY,

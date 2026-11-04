@@ -42,13 +42,13 @@ const EXAMPLES: { label: string; q: VehicleQuery }[] = DBJ_SAMPLE ? [
 type CondMode = "unset" | "none" | "some";
 type Res = { result: JudgeResult; versions: Record<string, number> };
 
-export function VehicleSearch({ makers, conditions, initialModel }: { makers: string[]; conditions: string[]; initialModel?: string }) {
+export function VehicleSearch({ makers, conditions, initialModel, initialReg }: { makers: string[]; conditions: string[]; initialModel?: string; initialReg?: string }) {
   const { actor } = useActor();
   // ダッシュボードのクイック検索から遷移した場合は即時に検索する
   useEffect(() => {
-    if (initialModel) run({ modelCode: initialModel });
+    if (initialModel) run({ modelCode: initialModel, regYm: initialReg });
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [initialModel]);
+  }, [initialModel, initialReg]);
   const [maker, setMaker] = useState("");
   const [modelCode, setModelCode] = useState("");
   const [regYm, setRegYm] = useState("");

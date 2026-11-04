@@ -11,6 +11,7 @@ import { Badge } from "./status-badge";
 import { DATASETS, getDataset } from "@/lib/datasets";
 import { MODE_LABEL, detectDatasetFromText, type ValidationResult } from "@/lib/csv";
 import { DBJ_SAMPLE } from "@/lib/profile";
+import { FLAT_ORDER, convertFlat, isFlatCsv, type FlatResult } from "@/lib/flat";
 
 const STEPS = ["CSVアップロード", "形式検証", "差分確認", "承認", "本番反映"];
 
@@ -24,16 +25,24 @@ const SAMPLES = [
 
 // どの環境でも使えるテストデータ（public/samples/test）。上から順に取り込む
 const TEST_FILES = [
+  // DBJ 様サンプル検証環境には仮品番を混ぜない（要件 6.3）
+  ...(DBJ_SAMPLE
+    ? [
+        { file: "test/S1_id7_unapprove.csv", dataset: "own_mappings", mode: "upsert", label: "ID 7 の承認を取り消す（差分・承認・復元の確認用）", ok: true },
+        { file: "test/S2_delete_referenced.csv", dataset: "vehicles", mode: "delete", label: "エラー: 参照中の車両（ID 1）を削除", ok: false },
+      ]
+    : [
   { file: "test/00_sources_add.csv", dataset: "sources", mode: "upsert", label: "① 出典を追加", ok: true },
   { file: "test/01_own_products_add.csv", dataset: "own_products", mode: "upsert", label: "② 自社商品を追加", ok: true },
   { file: "test/02_vehicles_add.csv", dataset: "vehicles", mode: "upsert", label: "③ 車両を追加", ok: true },
   { file: "test/03_vehicle_batteries_add.csv", dataset: "vehicle_batteries", mode: "upsert", label: "④ 搭載要件を追加", ok: true },
   { file: "test/04_own_mappings_add.csv", dataset: "own_mappings", mode: "upsert", label: "⑤ 自社対応を追加", ok: true },
   { file: "test/05_own_mappings_change_to_unapproved.csv", dataset: "own_mappings", mode: "upsert", label: "⑥ 承認を取り消す（復元の確認用）", ok: true },
+  { file: "test/E4_vehicles_delete_referenced.csv", dataset: "vehicles", mode: "delete", label: "エラー: 参照中の車両を削除", ok: false },
+      ]),
   { file: "test/E1_vehicles_errors.csv", dataset: "vehicles", mode: "upsert", label: "エラー: 車両（形式・参照）", ok: false },
   { file: "test/E2_vehicle_batteries_errors.csv", dataset: "vehicle_batteries", mode: "upsert", label: "エラー: 搭載要件（個数・区分）", ok: false },
   { file: "test/E3_own_mappings_no_approver.csv", dataset: "own_mappings", mode: "upsert", label: "エラー: 承認者なしの承認済み", ok: false },
-  { file: "test/E4_vehicles_delete_referenced.csv", dataset: "vehicles", mode: "delete", label: "エラー: 参照中の車両を削除", ok: false },
   { file: "test/E5_wrong_header.csv", dataset: "vehicles", mode: "upsert", label: "エラー: 定型外の列", ok: false },
 ];
 
@@ -80,6 +89,7 @@ export function CSVUploadPanel() {
   const [confirmOpen, setConfirmOpen] = useState(false);
   const [dragging, setDragging] = useState(false);
   const [notice, setNotice] = useState("");
+  const [flat, setFlat] = useState<{ name: string; result: FlatResult; done: string[] } | null>(null);
 
   const ds = getDataset(dataset)!;
   const step = published ? 5 : pending ? 4 : result?.ok ? 3 : csv ? 2 : 1;
@@ -102,6 +112,12 @@ export function CSVUploadPanel() {
     let text = new TextDecoder("utf-8").decode(buf);
     if (text.includes("�")) text = new TextDecoder("shift_jis").decode(buf);
     reset();
+    // DBJ 既存形式の CSV は定型 CSV 5 種に変換し、順番に取り込めるようにする
+    if (isFlatCsv(text)) {
+      setFlat({ name: f.name, result: convertFlat(text), done: [] });
+      return;
+    }
+    setFlat(null);
     // ファイルの列から対象マスターを自動で選ぶ（選択ミスの防止）
     const found = detectDatasetFromText(text);
     if (found && found.id !== dataset) {
@@ -121,6 +137,15 @@ export function CSVUploadPanel() {
     setMode(s.mode as Mode);
     setCsv(text);
     setFileName(s.file);
+  }
+
+  function loadFlatStep(id: (typeof FLAT_ORDER)[number]) {
+    if (!flat) return;
+    reset();
+    setDataset(id);
+    setMode("upsert");
+    setCsv(flat.result.csv[id]!);
+    setFileName(`${flat.name.replace(/\.csv$/i, "")}_${id}.csv`);
   }
 
   async function validate() {
@@ -151,6 +176,7 @@ export function CSVUploadPanel() {
     setConfirmOpen(false);
     if (r.status !== 200) return setError(r.data.error);
     setPublished(pending.version_no);
+    setFlat((x) => (x ? { ...x, done: [...x.done, dataset] } : x));
   }
 
   const changes = result ? result.summary.added + result.summary.changed + result.summary.deleted : 0;
@@ -242,7 +268,14 @@ export function CSVUploadPanel() {
               <button className="btn-primary flex-1" disabled={!csv || busy || !!pending} onClick={validate}>
                 <ShieldCheck size={16} aria-hidden /> 形式を検証する
               </button>
-              <button className="btn-secondary" onClick={() => reset()} disabled={busy}>
+              <button
+                className="btn-secondary"
+                onClick={() => {
+                  reset();
+                  setFlat(null);
+                }}
+                disabled={busy}
+              >
                 やり直す
               </button>
             </div>
@@ -254,8 +287,14 @@ export function CSVUploadPanel() {
               <span className="text-xs font-normal text-muted group-open:hidden">表示</span>
             </summary>
             <p className="border-t border-line px-5 py-2.5 text-xs text-muted">
-              ①〜⑤を順番に「検証 → 申請 → 別の承認者で承認」すると、
-              <Link href="/search/vehicle?model=TEST-A100" className="text-action hover:underline">TEST-A100</Link> などで検索できます。
+              {DBJ_SAMPLE ? (
+                <>DBJ 様の CSV（既存形式）は、そのままアップロードして取り込めます。下の項目は差分・承認・エラー表示の確認用です。取り消した承認は「承認・更新履歴」から復元できます。</>
+              ) : (
+                <>
+                  ①〜⑤を順番に「検証 → 申請 → 別の承認者で承認」すると、
+                  <Link href="/search/vehicle?model=TEST-A100" className="text-action hover:underline">TEST-A100</Link> などで検索できます。
+                </>
+              )}
             </p>
             <ul className="divide-y divide-line-soft border-t border-line">
               {TEST_FILES.map((s) => (
@@ -297,7 +336,61 @@ export function CSVUploadPanel() {
           {error && <AlertMessage variant="error" title="処理できませんでした">{error}</AlertMessage>}
           {notice && <AlertMessage variant="info">{notice}</AlertMessage>}
 
-          {step === 1 && (
+          {flat && (
+            <section className="card overflow-hidden">
+              <div className="flex flex-wrap items-center gap-2 border-b border-line px-5 py-3.5">
+                <h2 className="text-sm font-bold">DBJ 既存形式の CSV を変換しました</h2>
+                {flat.result.ok ? <Badge tone="success">変換 OK</Badge> : <Badge tone="error">エラー {flat.result.errors.length} 件</Badge>}
+                <span className="text-xs text-muted">{flat.name} ・ {flat.result.rowCount} 行</span>
+              </div>
+              <div className="space-y-3 px-5 py-4 text-[13px]">
+                {flat.result.errors.length > 0 && (
+                  <AlertMessage variant="error" title="エラーがあるため取り込めません">
+                    <ul className="list-disc space-y-0.5 pl-4">
+                      {flat.result.errors.map((e) => <li key={e}>{e}</li>)}
+                    </ul>
+                  </AlertMessage>
+                )}
+                {flat.result.warnings.length > 0 && (
+                  <AlertMessage variant="warning" title="ご確認ください">
+                    <ul className="list-disc space-y-0.5 pl-4">
+                      {flat.result.warnings.map((e) => <li key={e}>{e}</li>)}
+                    </ul>
+                  </AlertMessage>
+                )}
+                <details>
+                  <summary className="cursor-pointer text-xs text-muted">変換時の扱いを表示</summary>
+                  <ul className="mt-2 list-disc space-y-0.5 pl-4 text-xs text-muted">
+                    {flat.result.notes.map((e) => <li key={e}>{e}</li>)}
+                  </ul>
+                </details>
+                {flat.result.ok && (
+                  <div>
+                    <p className="mb-2 text-xs text-muted">参照関係があるため、上から順に「読込 → 検証 → 申請 → 別の承認者で承認」してください。変更がないマスターは次へ進んでください。</p>
+                    <ol className="divide-y divide-line-soft rounded-lg border border-line">
+                      {FLAT_ORDER.map((id, i) => (
+                        <li key={id} className="flex items-center gap-3 px-3 py-2">
+                          <span className="w-5 text-center font-bold text-navy tnum">{i + 1}</span>
+                          <span className="min-w-0 flex-1">
+                            {getDataset(id)!.label} <span className="text-xs text-muted tnum">{flat.result.counts[id]} 件</span>
+                          </span>
+                          {flat.done.includes(id) ? (
+                            <Badge tone="success">反映済み</Badge>
+                          ) : (
+                            <button className="btn-secondary btn-sm" onClick={() => loadFlatStep(id)} disabled={!!pending} aria-label={`${getDataset(id)!.label}を読み込む`}>
+                              読込
+                            </button>
+                          )}
+                        </li>
+                      ))}
+                    </ol>
+                  </div>
+                )}
+              </div>
+            </section>
+          )}
+
+          {step === 1 && !flat && (
             <section className="card px-5 py-10 text-center">
               <FileSpreadsheet size={28} className="mx-auto mb-2 text-subtle" aria-hidden />
               <div className="text-sm font-medium">CSV を選択してください</div>

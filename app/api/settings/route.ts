@@ -1,4 +1,4 @@
-import { DEFAULT_BACKUP, getSetting, setSetting } from "@/lib/repo";
+import { BACKUP_FREQUENCIES, DEFAULT_BACKUP, getSetting, setSetting } from "@/lib/repo";
 import { actorOf, fail, ok } from "@/lib/api";
 
 export async function GET() {
@@ -16,8 +16,8 @@ export async function POST(req: Request) {
     const b = body.backup;
     const days = Number(b.retention_days);
     if (!Number.isInteger(days) || days < 7 || days > 365) return fail("保持期間は 7〜365 日で指定してください");
-    if (!String(b.frequency ?? "").trim() || !String(b.destination ?? "").trim()) return fail("実行頻度と保存先を指定してください");
-    await setSetting("backup", { frequency: String(b.frequency), retention_days: days, destination: String(b.destination), notify: !!b.notify });
+    if (!BACKUP_FREQUENCIES.includes(b.frequency)) return fail("実行頻度が不正です");
+    await setSetting("backup", { frequency: b.frequency, retention_days: days });
   }
   return ok({
     auto_reply_enabled: await getSetting("auto_reply_enabled", true),

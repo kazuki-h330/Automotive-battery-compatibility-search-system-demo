@@ -9,6 +9,7 @@ import { MODE_LABEL } from "@/lib/csv";
 import { DATASETS, getDataset } from "@/lib/datasets";
 import { db, type Row } from "@/lib/db";
 import { DBJ_SAMPLE } from "@/lib/profile";
+import { SampleGuide } from "@/components/sample-guide";
 import { publishedDetails } from "@/lib/repo";
 
 export const dynamic = "force-dynamic";
@@ -62,6 +63,8 @@ export default async function Dashboard() {
           承認されるまで検索結果には反映されません。
         </AlertMessage>
       )}
+
+      {DBJ_SAMPLE && <SampleGuide />}
 
       <div className="mb-8 grid gap-4 sm:grid-cols-2 xl:grid-cols-4">
         {ACTIONS.map((a) => {
