@@ -27,7 +27,7 @@ export default async function Dashboard() {
        FROM master_versions WHERE mode <> 'initial' ORDER BY submitted_at DESC, id DESC LIMIT 6`,
   );
   const [{ n: pending }] = await db().query(`SELECT count(*)::int AS n FROM master_versions WHERE status = 'pending'`);
-  const lastUpdated = pub.map((p) => p.reviewed_at).sort().at(-1);
+  const lastUpdated = pub.map((p) => p.reviewed_at).filter(Boolean).sort((a, b) => +new Date(a) - +new Date(b)).at(-1);
 
   return (
     <>

@@ -136,7 +136,7 @@ export function VehicleSearch({ makers, conditions, initialModel }: { makers: st
                 className="field font-mono"
                 value={engineCode}
                 onChange={(e) => setEngineCode(e.target.value)}
-                placeholder="例: R20T"
+                placeholder={DBJ_SAMPLE ? "例: 1NR-FKE" : "例: R20T"}
                 aria-invalid={!!missing("原動機型式")}
                 autoComplete="off"
               />

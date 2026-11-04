@@ -84,7 +84,14 @@ export function VersionHistory({ initialDataset = "" }: { initialDataset?: strin
   async function openDetail(v: Version) {
     setNote("");
     setDetail({ ...v, loading: true });
-    setDetail(await (await fetch(`/api/master/versions/${v.id}`)).json());
+    const res = await fetch(`/api/master/versions/${v.id}`);
+    const data = await res.json();
+    if (!res.ok) {
+      setDetail(null);
+      setMsg({ ok: false, text: data.error });
+      return;
+    }
+    setDetail(data);
   }
 
   async function act(v: Version, action: "approve" | "reject") {
@@ -93,15 +100,21 @@ export function VersionHistory({ initialDataset = "" }: { initialDataset?: strin
     setBusy(false);
     setApproveTarget(null);
     setDetail(null);
+    setNote("");
     setMsg(r.status === 200 ? { ok: true, text: action === "approve" ? `${getDataset(v.dataset)?.label} v${v.version_no} を承認し、本番に反映しました。` : `v${v.version_no} を差し戻しました。` } : { ok: false, text: r.data.error });
     reload();
   }
 
   async function startRestore(v: Version) {
     setBusy(true);
-    const preview = await (await fetch(`/api/master/versions/${v.id}?preview=restore`)).json();
+    const res = await fetch(`/api/master/versions/${v.id}?preview=restore`);
+    const preview = await res.json();
     setBusy(false);
     setDetail(null);
+    if (!res.ok) {
+      setMsg({ ok: false, text: preview.error });
+      return;
+    }
     setRestoreTarget({ v, preview });
   }
 
@@ -357,7 +370,7 @@ export function VersionHistory({ initialDataset = "" }: { initialDataset?: strin
         }
         confirmLabel="復元を申請する"
         acknowledge="対象の版と影響を確認しました"
-        disabled={!restoreTarget?.preview.ok}
+        disabled={!restoreTarget?.preview.ok || restoreTarget.preview.diff.length === 0}
         busy={busy}
         onConfirm={doRestore}
         onClose={() => setRestoreTarget(null)}

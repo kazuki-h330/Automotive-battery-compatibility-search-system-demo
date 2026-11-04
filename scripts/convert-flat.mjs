@@ -18,13 +18,20 @@ const BASIS = basisArg > 0 ? process.argv[basisArg + 1] : "初度登録";
 const TODAY = new Date().toISOString().slice(0, 10);
 
 const text = readFileSync(input, "utf8").replace(/^﻿/, "");
-const { data: rows } = Papa.parse(text, { header: true, skipEmptyLines: true, delimiter: "," });
+const { data: rows, meta, errors: parseErrors } = Papa.parse(text, { header: true, skipEmptyLines: "greedy", delimiter: "," });
 
-const errors = [];
+const errors = parseErrors.map((e) => `CSV 形式エラー（${e.row != null ? e.row + 2 : "?"} 行目）: ${e.message}`);
 const warnings = [];
 const notes = [];
 const singleMonth = [];
 const at = (r) => `ID ${r.id}（${r.vehicle_maker} ${r.model_code}）`;
+
+const REQUIRED = ["id", "vehicle_maker", "model_code", "model_year", "engine_code", "battery_type_spec", "required_battery_code", "dbj_product_code", "status", "Source_note", "customer_reply_allowed"];
+const absent = REQUIRED.filter((c) => !meta.fields?.includes(c));
+if (absent.length) {
+  console.error(`必須列がありません: ${absent.join(", ")}`);
+  process.exit(2);
+}
 
 const STATUS = { 確認済み: "適合確認済み", 条件不足: "解析済み", 未登録: "収集済み" };
 const CATEGORIES = ["JIS", "JIS EFB", "LN", "LN EFB", "LN AGM"];
@@ -63,6 +70,7 @@ const own = new Map();
 const maps = new Map();
 
 for (const r of rows) {
+  for (const c of ["id", "vehicle_maker", "model_code"]) if (!r[c]?.trim()) errors.push(`${r.id || "?"} 行: ${c} が空です`);
   const status = STATUS[r.status?.trim()];
   if (!status) errors.push(`${at(r)}: status「${r.status}」は未定義です（確認済み / 条件不足 / 未登録）`);
   const category = r.battery_type_spec?.trim();
@@ -77,14 +85,15 @@ for (const r of rows) {
   const code = r.dbj_product_code?.trim();
   if (reply && r.status?.trim() !== "確認済み") warnings.push(`${at(r)}: 「${r.status}」なのに customer_reply_allowed = TRUE です（回答は止めます）`);
   if (reply && !code) warnings.push(`${at(r)}: 顧客回答可ですが DBJ 品番が空です`);
-  if (code && r.reply_template && !r.reply_template.includes(code))
+  if (code && r.reply_template?.trim() && !r.reply_template.includes(code))
     errors.push(`${at(r)}: reply_template の品番が dbj_product_code「${code}」と一致しません`);
 
   const p = period(r.model_year, r);
   const vid = `S${pad(r.id)}`;
+  if (vehicles.some((v) => v.id === vid)) errors.push(`${at(r)}: id が重複しています`);
   const src = reply ? "SRC-S-OK" : "SRC-S-NG";
   vehicles.push({
-    id: vid, maker: r.vehicle_maker, car_name: r.vehicle_maker, model_code: r.model_code.trim(), engine_code: r.engine_code,
+    id: vid, maker: r.vehicle_maker, car_name: r.vehicle_maker, model_code: r.model_code?.trim(), engine_code: r.engine_code,
     grade_spec: null, conditions: null, period_basis: BASIS, period_from: p.from, period_to: p.to, period_raw: r.model_year,
     status: status ?? "収集済み", source_id: src, note: r.Source_note,
   });
@@ -144,7 +153,8 @@ notes.push("reply_template は取り込みません。回答文は承認済み�
 
 mkdirSync(outDir, { recursive: true });
 const out = { sources, own_products: [...own.values()], vehicles, vehicle_batteries: batteries, own_mappings: mappings };
-for (const [name, list] of Object.entries(out)) writeFileSync(path.join(outDir, `${name}.csv`), Papa.unparse(list, { newline: "\n", columns: getDataset(name).columns.map((c) => c.name) }) + "\n");
+// エラーがある場合は取込用 CSV を出力しない（レポートのみ）
+if (!errors.length) for (const [name, list] of Object.entries(out)) writeFileSync(path.join(outDir, `${name}.csv`), Papa.unparse(list, { newline: "\n", columns: getDataset(name).columns.map((c) => c.name) }) + "\n");
 
 const report = [
   `# 変換レポート: ${path.basename(input)}`,

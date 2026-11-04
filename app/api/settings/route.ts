@@ -16,6 +16,7 @@ export async function POST(req: Request) {
     const b = body.backup;
     const days = Number(b.retention_days);
     if (!Number.isInteger(days) || days < 7 || days > 365) return fail("保持期間は 7〜365 日で指定してください");
+    if (!String(b.frequency ?? "").trim() || !String(b.destination ?? "").trim()) return fail("実行頻度と保存先を指定してください");
     await setSetting("backup", { frequency: String(b.frequency), retention_days: days, destination: String(b.destination), notify: !!b.notify });
   }
   return ok({

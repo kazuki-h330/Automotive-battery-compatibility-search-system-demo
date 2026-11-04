@@ -65,6 +65,15 @@ function checkValue(ds: Dataset, r: Row, line: number, errors: CsvError[]) {
     if (c.type === "ym" && !/^\d{4}(-(0[1-9]|1[0-2]))?$/.test(v))
       errors.push({ line, column: c.name, message: `「${c.label}」は YYYY-MM または YYYY（年のみ）で入力してください（${v}）。月の推測はしません` });
   }
+  if (ds.id === "vehicles") {
+    const from = toStr(r.period_from);
+    const to = toStr(r.period_to);
+    // 年のみと年月が混在する場合は共通する桁で比較する
+    if (from && to && from.slice(0, Math.min(from.length, to.length)) > to.slice(0, Math.min(from.length, to.length)))
+      errors.push({ line, column: "period_from", message: `期間の開始（${from}）が終了（${to}）より後になっています` });
+  }
+  if (ds.id === "vehicle_batteries" && /^-?\d+$/.test(toStr(r.qty) ?? "") && Number(r.qty) < 1)
+    errors.push({ line, column: "qty", message: `「個数」は 1 以上で入力してください（${r.qty}）` });
   if (ds.id === "own_mappings") {
     if (r.match_type === "spec" && (!toStr(r.category) || !toStr(r.spec_code)))
       errors.push({ line, message: "対応元が spec の場合、規格区分と規格表記は必須です" });
