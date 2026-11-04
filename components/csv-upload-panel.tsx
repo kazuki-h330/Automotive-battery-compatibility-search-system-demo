@@ -113,7 +113,9 @@ export function CSVUploadPanel() {
   }
 
   async function loadSample(s: { file: string; dataset: string; mode: string }) {
-    const text = await (await fetch(`/samples/${s.file}`)).text();
+    const res = await fetch(`/samples/${s.file}`);
+    if (!res.ok) return setError(`サンプルを読み込めませんでした（${s.file}）`);
+    const text = await res.text();
     reset();
     setDataset(s.dataset);
     setMode(s.mode as Mode);

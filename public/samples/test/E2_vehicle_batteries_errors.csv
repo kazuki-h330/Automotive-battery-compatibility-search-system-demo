@@ -1,0 +1,5 @@
+id,vehicle_id,role,category,spec_code,raw_text,qty,condition,status,source_id,note
+SB201,S101,主機,JIS,55B24L,,0,,適合確認済み,SRC-TEST,個数0
+SB202,S999,主機,JIS,55B24L,,1,,適合確認済み,SRC-TEST,存在しない車両
+SB203,S101,助手,JIS,55B24L,,1,,適合確認済み,SRC-TEST,用途が不正
+SB204,S101,主機,AGM,55B24L,,1,,適合確認済み,SRC-TEST,区分が不正

@@ -1,0 +1,4 @@
+id,vehicle_maker,model_code,model_year,engine_code,battery_type_spec,required_battery_code,dbj_product_code,status,Source_note,customer_reply_allowed,reply_template
+1,テスト自動車,TEST-P100,2019/04-2022/03,P1,JIS,65B24L,DBJ-T65B24L,確認済み,テスト,TRUE,適合バッテリーはDBJ-T65B24Lとなります。
+2,テスト自動車,TEST-P200,2020/01-,P2,JIS,95D26L,DBJ-T95D26L,確認済み,テスト,TRUE,適合バッテリーはDBJ-T95D26Lとなります。
+3,テスト自動車,TEST-P300,2021/06-,P3,LN EFB,LN4,,条件不足,テスト,FALSE,追加確認が必要です。
