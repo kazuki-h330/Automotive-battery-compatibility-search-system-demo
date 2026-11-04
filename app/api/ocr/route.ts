@@ -1,4 +1,5 @@
 import { ok } from "@/lib/api";
+import { DBJ_SAMPLE } from "@/lib/profile";
 
 // オプション B（車検証 OCR）のデモ。実運用では画像解析 API（例: Google Cloud Vision / Azure Document Intelligence 等、
 // 学習利用なし・国内リージョンを選定）に画像を送り、技術項目だけを抽出する。
@@ -8,14 +9,14 @@ type Field = { key: string; label: string; value: string; confidence: number; ma
 
 const SAMPLES: Record<string, Field[]> = {
   clear: [
-    { key: "modelCode", label: "型式", value: "DBA-EF30", confidence: 0.98, matchable: true },
-    { key: "engineCode", label: "原動機の型式", value: "R20T", confidence: 0.96, matchable: true },
+    { key: "modelCode", label: "型式", value: DBJ_SAMPLE ? "DBA-NSP130" : "DBA-EF30", confidence: 0.98, matchable: true },
+    { key: "engineCode", label: "原動機の型式", value: DBJ_SAMPLE ? "1NR-FKE" : "R20T", confidence: 0.96, matchable: true },
     { key: "regYm", label: "初度登録年月", value: "2019-05", confidence: 0.93, matchable: true, note: "原文「令和元年5月」を西暦に変換" },
-    { key: "chassis", label: "車台番号", value: "EF30-******", confidence: 0.9, matchable: false, note: "照合に使わないためマスキング・非保存" },
+    { key: "chassis", label: "車台番号", value: DBJ_SAMPLE ? "NSP130-******" : "EF30-******", confidence: 0.9, matchable: false, note: "照合に使わないためマスキング・非保存" },
   ],
   blurry: [
-    { key: "modelCode", label: "型式", value: "5BA-CD2O", confidence: 0.54, matchable: true, note: "末尾が「0」か「O」か判別不能" },
-    { key: "engineCode", label: "原動機の型式", value: "K15X", confidence: 0.88, matchable: true },
+    { key: "modelCode", label: "型式", value: DBJ_SAMPLE ? "DBA-GK8" : "5BA-CD2O", confidence: 0.54, matchable: true, note: DBJ_SAMPLE ? "末尾が「3」か「8」か判別不能" : "末尾が「0」か「O」か判別不能" },
+    { key: "engineCode", label: "原動機の型式", value: DBJ_SAMPLE ? "L13B" : "K15X", confidence: 0.88, matchable: true },
     { key: "regYm", label: "初度登録年月", value: "", confidence: 0, matchable: true, note: "読取不能（推測しない）" },
     { key: "chassis", label: "車台番号", value: "******", confidence: 0.4, matchable: false, note: "照合に使わないためマスキング・非保存" },
   ],

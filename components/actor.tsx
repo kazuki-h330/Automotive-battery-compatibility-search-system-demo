@@ -40,7 +40,13 @@ export const useActor = () => useContext(Ctx);
 export const actorPayload = (a: Actor) => ({ name: a.name, role: a.role });
 
 export async function postJson<T = any>(url: string, body: unknown): Promise<{ status: number; data: T }> {
-  const res = await fetch(url, { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify(body) });
+  let res: Response;
+  try {
+    res = await fetch(url, { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify(body) });
+  } catch {
+    // 通信断でも呼び出し側の処理中表示が残らないよう、エラーとして返す
+    return { status: 0, data: { error: "通信できませんでした。接続を確認して再度お試しください" } as T };
+  }
   let data: any = null;
   try {
     data = await res.json();

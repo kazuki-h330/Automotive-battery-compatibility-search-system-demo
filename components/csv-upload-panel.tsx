@@ -10,6 +10,7 @@ import { DiffCounts, DiffPreview } from "./diff-preview";
 import { Badge } from "./status-badge";
 import { DATASETS, getDataset } from "@/lib/datasets";
 import { MODE_LABEL, type ValidationResult } from "@/lib/csv";
+import { DBJ_SAMPLE } from "@/lib/profile";
 
 const STEPS = ["CSVアップロード", "形式検証", "差分確認", "承認", "本番反映"];
 
@@ -119,6 +120,7 @@ export function CSVUploadPanel() {
   async function approve() {
     if (!pending) return;
     setBusy(true);
+    setError("");
     const r = await postJson(`/api/master/versions/${pending.id}`, { action: "approve", actor: actorPayload(actor) });
     setBusy(false);
     setConfirmOpen(false);
@@ -190,7 +192,7 @@ export function CSVUploadPanel() {
                     e.preventDefault();
                     setDragging(false);
                     const f = e.dataTransfer.files[0];
-                    if (f) loadFile(f);
+                    if (f && !pending) loadFile(f);
                   }}
                   className={`flex cursor-pointer flex-col items-center justify-center gap-1 rounded-lg border border-dashed px-4 py-6 text-center has-focus-visible:outline-2 has-focus-visible:outline-action ${
                     dragging ? "border-action bg-action-soft" : "border-[#cbd5e1] bg-canvas hover:border-action"
@@ -199,7 +201,12 @@ export function CSVUploadPanel() {
                   <Upload size={20} className="text-muted" aria-hidden />
                   <span className="text-[13px] font-medium">{fileName || "ファイルを選択 または ドラッグ＆ドロップ"}</span>
                   <span className="text-[11px] text-muted">定型 CSV（UTF-8 / Shift_JIS）</span>
-                  <input type="file" accept=".csv,text/csv" className="sr-only" onChange={(e) => e.target.files?.[0] && loadFile(e.target.files[0])} disabled={!!pending} />
+                  <input type="file" accept=".csv,text/csv" className="sr-only" onChange={(e) => {
+                      const f = e.target.files?.[0];
+                      // 同じファイルを修正して選び直せるよう、選択状態を毎回クリアする
+                      e.target.value = "";
+                      if (f) loadFile(f);
+                    }} disabled={!!pending} />
                 </label>
                 <a href={`/api/master/export?dataset=${dataset}`} className="mt-2 inline-flex items-center gap-1 text-xs text-action hover:underline">
                   <Download size={12} aria-hidden /> 現在の公開データを定型 CSV で取得（編集用ひな形）
@@ -216,7 +223,8 @@ export function CSVUploadPanel() {
             </div>
           </section>
 
-          <details className="card group">
+          {/* サンプル CSV はデモ用データ前提のため、DBJ 様サンプル検証環境では表示しない */}
+          {!DBJ_SAMPLE && <details className="card group">
             <summary className="flex cursor-pointer list-none items-center justify-between px-5 py-3 text-[13px] font-medium">
               検証用サンプル CSV
               <span className="text-xs font-normal text-muted group-open:hidden">表示</span>
@@ -235,7 +243,7 @@ export function CSVUploadPanel() {
                 </li>
               ))}
             </ul>
-          </details>
+          </details>}
         </div>
 
         {/* 右：検証・差分・承認・反映 */}
