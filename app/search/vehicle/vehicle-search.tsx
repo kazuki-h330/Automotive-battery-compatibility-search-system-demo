@@ -10,8 +10,21 @@ import { ModeNotice, ResultCard, TraceDetails } from "@/components/result-card";
 import { ExampleChips, Field, SearchForm } from "@/components/search-form";
 import { ApprovalStatusBadge, Badge, CustomerUseBadge } from "@/components/status-badge";
 import type { CandidateView, JudgeResult, VehicleQuery } from "@/lib/judge";
+import { DBJ_SAMPLE } from "@/lib/profile";
 
-const EXAMPLES: { label: string; q: VehicleQuery }[] = [
+const EXAMPLES: { label: string; q: VehicleQuery }[] = DBJ_SAMPLE ? [
+  { label: "ID1 通常適合", q: { modelCode: "DBA-NSP130", regYm: "2015-04" } },
+  { label: "ID2 年式分岐", q: { modelCode: "DBA-NSP130", regYm: "2019-05" } },
+  { label: "ID1/2 年月なし", q: { modelCode: "DBA-NSP130" } },
+  { label: "ID4 通常適合", q: { modelCode: "DBA-GK3", regYm: "2016-03" } },
+  { label: "ID5 条件不足", q: { modelCode: "DBA-GK3", regYm: "2019-01" } },
+  { label: "ID6 同一製品", q: { modelCode: "DBA-E12" } },
+  { label: "ID9 LN EFB", q: { modelCode: "DBA-GT7" } },
+  { label: "ID14 回答不可", q: { modelCode: "3DA-205004" } },
+  { label: "ID15 未登録", q: { modelCode: "TEST-US-001" } },
+  { label: "接頭辞なしの入力", q: { modelCode: "NSP130" } },
+  { label: "CSVにない型式", q: { modelCode: "DBA-ZZ999" } },
+] : [
   { label: "確認済み（一意）", q: { modelCode: "3BA-AB10" } },
   { label: "装備条件で分岐", q: { modelCode: "5BA-CD20" } },
   { label: "期間で分岐", q: { modelCode: "DBA-EF30" } },
@@ -108,7 +121,7 @@ export function VehicleSearch({ makers, conditions, initialModel }: { makers: st
               className="field font-mono tracking-wide"
               value={modelCode}
               onChange={(e) => setModelCode(e.target.value)}
-              placeholder="例: 3BA-AB10"
+              placeholder={DBJ_SAMPLE ? "例: DBA-NSP130" : "例: 3BA-AB10"}
               aria-invalid={!!fieldError}
               autoComplete="off"
             />
