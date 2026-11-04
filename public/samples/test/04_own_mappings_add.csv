@@ -1,0 +1,4 @@
+id,match_type,category,spec_code,product_id,own_part_no,direction,status,customer_use,conditions,source_id,approved_by,approved_at,note
+SM101,spec,JIS,65B24L,,DBJ-T65B24L,双方向,自社対応確認済み,true,,SRC-TEST,中野,2026-11-04,テスト
+SM102,spec,JIS,95D26L,,DBJ-T95D26L,双方向,自社対応確認済み,true,,SRC-TEST,中野,2026-11-04,テスト
+SM103,spec,LN AGM,LN6,,DBJ-TLN6AGM,双方向,自社対応確認済み,true,,SRC-TEST,中野,2026-11-04,テスト

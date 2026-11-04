@@ -62,3 +62,24 @@ ApprovalStatusBadge, ResultCard, AlertMessage, EmptyState, LoadingSkeleton, Conf
 3. 利用者を「中野 誠（承認者）」に切り替え → 同じ画面で「承認して本番に反映」
 4. 再度 `3BA-JK50` を検索 → 確認済み・回答可に変わる
 5. 承認・更新履歴で旧版の「詳細 → この版に復元」→ 影響を確認して申請 → 「佐藤 由美（承認者）」で承認
+
+## 既存形式 CSV の変換（データ移行）
+
+1 行 = 1 車両適合の横長 CSV を、定型 CSV 5 種（sources / own_products / vehicles / vehicle_batteries / own_mappings）に変換します。
+
+```bash
+npm run data:convert -- <入力CSV> <出力フォルダ> [--basis 初度登録]
+```
+
+`report.md` にエラーと要確認事項を出力します。エラーがある場合は取込用 CSV を出力しません。
+変換後の CSV は、上記の順に「CSVマスター管理」から取り込み、承認します。
+
+## DBJ 様サンプル検証環境
+
+サンプルデータのみを登録した別環境です。Vercel の別プロジェクトで `NEXT_PUBLIC_DATA_PROFILE=dbj-sample` を設定してビルドすると、
+入力例が DBJ 様のサンプルに切り替わります。空の DB は `node scripts/setup-db.mjs --empty` で作成できます。
+
+## テストデータ
+
+`public/samples/test/` にどの環境でも使えるテストデータがあります。「CSVマスター管理」の「テストデータ（ワンクリックで読込）」から読み込めます。
+①〜⑤を順番に「検証 → 申請 → 別の承認者で承認」すると、`TEST-A100` などの型式で検索できます。

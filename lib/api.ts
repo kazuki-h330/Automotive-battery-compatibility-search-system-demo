@@ -6,7 +6,9 @@ export function ok(data: unknown, init?: ResponseInit) {
 }
 
 export function fail(e: unknown, status = 400) {
-  const message = e instanceof Error ? e.message : String(e);
+  // サーバー内部のエラー詳細は画面に出さず、ログにのみ残す
+  if (status >= 500) console.error(e);
+  const message = status >= 500 ? "サーバーでエラーが発生しました" : e instanceof Error ? e.message : String(e);
   return NextResponse.json({ error: message }, { status });
 }
 

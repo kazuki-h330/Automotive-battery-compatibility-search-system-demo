@@ -106,7 +106,7 @@ export function BatterySearch({ makers }: { makers: string[] }) {
               className="field font-mono"
               value={partNo}
               onChange={(e) => setPartNo(e.target.value)}
-              placeholder="例: AL-55B24L"
+              placeholder={DBJ_SAMPLE ? "例: DBJ-Q85" : "例: AL-55B24L"}
               autoComplete="off"
               aria-invalid={!!fieldError}
             />
@@ -227,9 +227,9 @@ function MatchedProducts({ rows }: { rows: (Row & { mappings: MappingView[]; sou
             header: "仕様",
             render: (x) => (
               <div className="text-xs tnum whitespace-nowrap">
-                {x.capacity_ah}Ah ／ CCA {x.cca}
+                {x.capacity_ah ?? "—"}Ah ／ CCA {x.cca ?? "—"}
                 <div className="text-muted">
-                  {x.length_mm}×{x.width_mm}×{x.height_mm}mm ／ 端子 {x.terminal}
+                  {x.length_mm ?? "—"}×{x.width_mm ?? "—"}×{x.height_mm ?? "—"}mm ／ 端子 {x.terminal ?? "—"}
                 </div>
                 <div className="text-muted">{x.hold_down}</div>
               </div>

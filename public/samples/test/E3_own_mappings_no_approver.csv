@@ -1,0 +1,2 @@
+id,match_type,category,spec_code,product_id,own_part_no,direction,status,customer_use,conditions,source_id,approved_by,approved_at,note
+SM201,spec,JIS,65B24L,,DBJ-T65B24L,双方向,自社対応確認済み,true,,SRC-TEST,,,承認者なし

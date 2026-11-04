@@ -1,0 +1,4 @@
+part_no,name,category,spec_code,size_group,capacity_ah,cca,length_mm,width_mm,height_mm,terminal,application,note
+DBJ-T65B24L,DBJ テスト 65B24L,JIS,65B24L,B24,45,430,238,129,227,L,テスト用,
+DBJ-T95D26L,DBJ テスト 95D26L,JIS,95D26L,D26,65,582,260,173,225,L,テスト用,
+DBJ-TLN6AGM,DBJ テスト LN6 AGM,LN AGM,LN6,LN6,50,540,207,175,190,R,補機用テスト,

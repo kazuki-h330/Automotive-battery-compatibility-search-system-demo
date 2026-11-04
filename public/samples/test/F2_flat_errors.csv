@@ -1,0 +1,5 @@
+id,vehicle_maker,model_code,model_year,engine_code,battery_type_spec,required_battery_code,dbj_product_code,status,Source_note,customer_reply_allowed,reply_template
+1,テスト自動車,TEST-P400,令和2年,P4,JIS,65B24L,DBJ-T65B24L,確認済み,年式不正,TRUE,適合バッテリーはDBJ-T65B24Lとなります。
+2,テスト自動車,TEST-P500,2020/01,P5,JIS,???,DBJ-X,確認済み,規格不正,TRUE,適合バッテリーはDBJ-Xとなります。
+3,テスト自動車,TEST-P600,2020/01,P6,JIS,65B24L,DBJ-T65B24L,確認中,状態不正,TRUE,適合バッテリーはDBJ-T65B24Lとなります。
+4,テスト自動車,TEST-P700,2020/01,P7,JIS,65B24L,DBJ-T65B24L,確認済み,文面不一致,TRUE,適合バッテリーはDBJ-Zとなります。

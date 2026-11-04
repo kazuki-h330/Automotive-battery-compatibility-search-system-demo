@@ -70,6 +70,7 @@ export async function publishedDetails() {
 }
 
 export async function getVersion(id: number) {
+  if (!Number.isInteger(id) || id < 1 || id > 2147483647) return undefined;
   const rows = await db().query(`SELECT * FROM master_versions WHERE id = $1`, [id]);
   return rows[0];
 }
@@ -86,16 +87,20 @@ async function createPending(
   extra: { file_name?: string; restored_from?: number },
 ) {
   const cur = (await publishedVersions())[dataset] ?? 0;
-  const [{ next }] = await db().query<{ next: number }>(
-    `SELECT coalesce(max(version_no), 0) + 1 AS next FROM master_versions WHERE dataset = $1`,
-    [dataset],
-  );
-  const rows = await db().query(
-    `INSERT INTO master_versions (dataset, version_no, status, mode, file_name, base_version, restored_from, summary, diff, snapshot, submitted_by)
-     VALUES ($1, $2, 'pending', $3, $4, $5, $6, $7::jsonb, $8::jsonb, $9::jsonb, $10) RETURNING id, version_no`,
-    [dataset, next, mode, extra.file_name ?? null, cur, extra.restored_from ?? null, JSON.stringify(v.summary), JSON.stringify(v.diff), JSON.stringify(v.snapshot), actor.name],
-  );
-  return rows[0];
+  // 同時申請で版番号が衝突した場合は採番し直す
+  for (let attempt = 1; ; attempt++) {
+    try {
+      const rows = await db().query(
+        `INSERT INTO master_versions (dataset, version_no, status, mode, file_name, base_version, restored_from, summary, diff, snapshot, submitted_by)
+         SELECT $1::text, coalesce(max(version_no), 0) + 1, 'pending', $2::text, $3::text, $4::int, $5::int, $6::jsonb, $7::jsonb, $8::jsonb, $9::text FROM master_versions WHERE dataset = $1::text
+         RETURNING id, version_no`,
+        [dataset, mode, extra.file_name ?? null, cur, extra.restored_from ?? null, JSON.stringify(v.summary), JSON.stringify(v.diff), JSON.stringify(v.snapshot), actor.name],
+      );
+      return rows[0];
+    } catch (e) {
+      if (attempt >= 5 || !String((e as Error)?.message).includes("duplicate key")) throw e;
+    }
+  }
 }
 
 export async function submitImport(dataset: DatasetId, mode: ImportMode, csv: string, fileName: string, actor: Actor, allowDelete = false) {
@@ -125,6 +130,7 @@ export async function requestRestore(id: number, actor: Actor) {
   if (old.status === "pending" || old.status === "rejected") throw new Error("公開されたことのある版のみ復元できます");
   const v = await validate(old.dataset, "replace", toCsv(old.dataset, old.snapshot));
   if (!v.ok) return { ok: false as const, validation: v };
+  if (v.summary.added + v.summary.changed + v.summary.deleted === 0) throw new Error("現在の公開データと同じ内容のため、復元の必要はありません");
   const created = await createPending(old.dataset, "restore", v, actor, { restored_from: old.version_no });
   return { ok: true as const, validation: v, version: created };
 }
@@ -142,7 +148,15 @@ export async function approve(id: number, actor: Actor, note?: string) {
   if (!recheck.ok) throw new Error(`参照整合エラーのため反映できません: ${recheck.errors[0]?.message}`);
 
   const table = v.dataset as DatasetId;
+  // 同時承認に備え、データセット単位でロックし、トランザクション内で再確認する（条件を満たさなければゼロ除算で中止）
   await db().transaction([
+    { text: `SELECT pg_advisory_xact_lock(hashtext($1))`, params: [table] },
+    {
+      text: `SELECT 1 / count(*) FROM master_versions v
+              WHERE v.id = $1 AND v.status = 'pending'
+                AND v.base_version = coalesce((SELECT max(p.version_no) FROM master_versions p WHERE p.dataset = v.dataset AND p.status = 'published'), 0)`,
+      params: [id],
+    },
     { text: `DELETE FROM ${table}` },
     { text: `INSERT INTO ${table} SELECT * FROM jsonb_populate_recordset(NULL::${table}, $1::jsonb)`, params: [JSON.stringify(v.snapshot)] },
     { text: `UPDATE master_versions SET status = 'superseded' WHERE dataset = $1 AND status = 'published'`, params: [table] },
@@ -150,7 +164,10 @@ export async function approve(id: number, actor: Actor, note?: string) {
       text: `UPDATE master_versions SET status = 'published', reviewed_by = $2, reviewed_at = now(), review_note = $3 WHERE id = $1`,
       params: [id, actor.name, note ?? null],
     },
-  ]);
+  ]).catch((e) => {
+    if (String(e?.message).includes("division by zero")) throw new Error("他の操作が先に反映されました。最新の状態を確認し、必要であれば再度申請してください");
+    throw e;
+  });
 }
 
 export async function reject(id: number, actor: Actor, note?: string) {

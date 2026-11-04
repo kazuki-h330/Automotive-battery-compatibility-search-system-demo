@@ -31,10 +31,10 @@ export default async function Page() {
       battery_type: typeOf(category),
       spec: ref
         ? {
-            capacity: `${ref.capacity_ah ?? "?"}Ah`,
-            cca: `CCA ${ref.cca ?? "?"}`,
-            dims: `${ref.length_mm}×${ref.width_mm}×${ref.height_mm}`,
-            terminal: ref.terminal ?? "?",
+            capacity: `${ref.capacity_ah ?? "—"}Ah`,
+            cca: `CCA ${ref.cca ?? "—"}`,
+            dims: `${ref.length_mm ?? "—"}×${ref.width_mm ?? "—"}×${ref.height_mm ?? "—"}`,
+            terminal: ref.terminal ?? "—",
             application: ref.application ?? "",
           }
         : null,

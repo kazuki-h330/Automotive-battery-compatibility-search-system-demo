@@ -3,6 +3,7 @@
 import { useState } from "react";
 import { Search, ShieldAlert } from "lucide-react";
 import { partKey } from "@/lib/normalize";
+import { DBJ_SAMPLE } from "@/lib/profile";
 import { AlertMessage } from "./alert-message";
 import { EmptyState } from "./empty-state";
 import { ApprovalStatusBadge, Badge, CustomerUseBadge } from "./status-badge";
@@ -72,7 +73,7 @@ export function ComparisonTable({ rows, makers, categories }: { rows: CompareRow
                 });
                 if (first) setTab(first.category);
               }}
-              placeholder="例: BT-60B24L/CR、TK LN2 AGM、N-55"
+              placeholder={DBJ_SAMPLE ? "例: DBJ-M42、Q-85、LN4" : "例: BT-60B24L/CR、TK LN2 AGM、N-55"}
               autoComplete="off"
             />
           </div>

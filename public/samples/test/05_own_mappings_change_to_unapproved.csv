@@ -1,0 +1,2 @@
+id,match_type,category,spec_code,product_id,own_part_no,direction,status,customer_use,conditions,source_id,approved_by,approved_at,note
+SM101,spec,JIS,65B24L,,DBJ-T65B24L,双方向,未確認,false,,SRC-TEST-NG,,,テスト: 承認を取り消し

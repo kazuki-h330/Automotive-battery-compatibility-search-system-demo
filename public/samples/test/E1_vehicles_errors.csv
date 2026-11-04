@@ -1,0 +1,7 @@
+id,maker,car_name,model_code,engine_code,grade_spec,conditions,period_basis,period_from,period_to,period_raw,status,source_id,note
+S201,テスト自動車,必須空欄,,ENG,,,初度登録,2020-01,,,適合確認済み,SRC-TEST,型式が空
+S202,テスト自動車,月が不正,TEST-X1,ENG,,,初度登録,2020-13,,,適合確認済み,SRC-TEST,存在しない月
+S203,テスト自動車,期間逆転,TEST-X2,ENG,,,初度登録,2021-05,2020-01,,適合確認済み,SRC-TEST,開始が終了より後
+S204,テスト自動車,状態不正,TEST-X3,ENG,,,初度登録,2020-01,,,確認済み,SRC-TEST,定義にない状態
+S205,テスト自動車,出典なし,TEST-X4,ENG,,,初度登録,2020-01,,,適合確認済み,SRC-NONE,存在しない出典
+S205,テスト自動車,ID重複,TEST-X5,ENG,,,初度登録,2020-01,,,適合確認済み,SRC-TEST,IDが重複

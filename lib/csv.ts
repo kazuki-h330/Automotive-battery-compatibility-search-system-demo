@@ -65,6 +65,15 @@ function checkValue(ds: Dataset, r: Row, line: number, errors: CsvError[]) {
     if (c.type === "ym" && !/^\d{4}(-(0[1-9]|1[0-2]))?$/.test(v))
       errors.push({ line, column: c.name, message: `「${c.label}」は YYYY-MM または YYYY（年のみ）で入力してください（${v}）。月の推測はしません` });
   }
+  if (ds.id === "vehicles") {
+    const from = toStr(r.period_from);
+    const to = toStr(r.period_to);
+    // 年のみと年月が混在する場合は共通する桁で比較する
+    if (from && to && from.slice(0, Math.min(from.length, to.length)) > to.slice(0, Math.min(from.length, to.length)))
+      errors.push({ line, column: "period_from", message: `期間の開始（${from}）が終了（${to}）より後になっています` });
+  }
+  if (ds.id === "vehicle_batteries" && /^-?\d+$/.test(toStr(r.qty) ?? "") && Number(r.qty) < 1)
+    errors.push({ line, column: "qty", message: `「個数」は 1 以上で入力してください（${r.qty}）` });
   if (ds.id === "own_mappings") {
     if (r.match_type === "spec" && (!toStr(r.category) || !toStr(r.spec_code)))
       errors.push({ line, message: "対応元が spec の場合、規格区分と規格表記は必須です" });
@@ -78,6 +87,17 @@ function checkValue(ds: Dataset, r: Row, line: number, errors: CsvError[]) {
 export function parseCsv(text: string) {
   const res = Papa.parse<Row>(text.replace(/^﻿/, ""), { header: true, skipEmptyLines: "greedy", delimiter: "," });
   return { rows: res.data, headers: res.meta.fields ?? [], parseErrors: res.errors };
+}
+
+/** ヘッダーが完全に一致するデータセットを返す（対象マスターの選択ミス防止） */
+export function detectDataset(headers: string[]) {
+  const set = new Set(headers);
+  return DATASETS.find((d) => d.columns.length === set.size && d.columns.every((c) => set.has(c.name)));
+}
+
+/** ファイルの内容から対象マスターを判定する（1 行目のみ解析） */
+export function detectDatasetFromText(text: string) {
+  return detectDataset(parseCsv(text.split(/\r?\n/, 1)[0] ?? "").headers);
 }
 
 /**
@@ -96,9 +116,15 @@ export function validateImport(
 
   const colNames = ds.columns.map((c) => c.name);
   const needCols = mode === "delete" ? [ds.key] : ds.columns.filter((c) => c.required).map((c) => c.name);
-  for (const n of needCols) if (!headers.includes(n)) errors.push({ line: 1, column: n, message: `必須列「${n}」がヘッダーにありません` });
-  for (const h of headers) if (!colNames.includes(h)) errors.push({ line: 1, column: h, message: `未定義の列「${h}」があります（定型 CSV 以外は取り込めません）` });
-  if (mode !== "delete") {
+  const other = detectDataset(headers);
+  const wrongTarget = !!other && other.id !== dsId;
+  // 別のマスター用の CSV は、列ごとのエラーを並べず原因だけを示す
+  if (wrongTarget) errors.push({ line: 1, message: `この CSV は「${other.label}」用です。対象マスターを「${other.label}」に変更してください` });
+  else {
+    for (const n of needCols) if (!headers.includes(n)) errors.push({ line: 1, column: n, message: `必須列「${n}」がヘッダーにありません` });
+    for (const h of headers) if (!colNames.includes(h)) errors.push({ line: 1, column: h, message: `未定義の列「${h}」があります（定型 CSV 以外は取り込めません）` });
+  }
+  if (mode !== "delete" && !wrongTarget) {
     const missingOptional = colNames.filter((c) => !headers.includes(c) && !needCols.includes(c));
     if (missingOptional.length)
       errors.push({ line: 1, message: `列が不足しています: ${missingOptional.join(", ")}（空欄で良い列もヘッダーは必要です。差分更新で値が消えるのを防ぐため）` });

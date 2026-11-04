@@ -1,0 +1,3 @@
+id,name,kind,usage_condition,internal_only,customer_use,note
+SRC-TEST,テストデータ（顧客回答可）,テスト,顧客回答に利用可,false,true,TEST- で始まる車両用
+SRC-TEST-NG,テストデータ（顧客回答不可）,テスト,顧客回答不可,true,false,TEST- で始まる車両用

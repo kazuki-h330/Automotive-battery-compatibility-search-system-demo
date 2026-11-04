@@ -7,6 +7,7 @@ import { FutureHeader } from "@/components/future-banner";
 import { SectionTitle } from "@/components/page-header";
 import { Badge } from "@/components/status-badge";
 import type { VehicleQuery } from "@/lib/judge";
+import { DBJ_SAMPLE } from "@/lib/profile";
 
 type Msg = { from: "user" | "bot" | "system"; text: string; quick?: string[] };
 type Ask = "modelCode" | "regYm" | "conditions" | "ocrConfirm" | null;
@@ -35,7 +36,13 @@ export default function LinePreview() {
   const [ocrDraft, setOcrDraft] = useState<VehicleQuery | null>(null);
   const endRef = useRef<HTMLDivElement>(null);
 
-  useEffect(() => endRef.current?.scrollIntoView({ behavior: "smooth", block: "nearest" }), [msgs]);
+  useEffect(() => {
+    endRef.current?.scrollIntoView({ behavior: "smooth", block: "nearest" });
+  }, [msgs]);
+  // 再読み込み後に前回の引継ぎ状態が残り、無応答に見えるのを防ぐ
+  useEffect(() => {
+    postJson("/api/line/session", { userId: USER_ID });
+  }, []);
 
   async function sendEvent(payload: any, eventId = newEventId()) {
     setLast({ eventId, payload });
@@ -63,13 +70,16 @@ export default function LinePreview() {
       return;
     }
     let q = { ...query };
-    if (ask === "regYm") {
+    const wantsStaff = /スタッフ|担当者|人と話/.test(text);
+    if (wantsStaff) {
+      // 追加質問の途中でもスタッフ対応の希望を優先する（サーバー側で引継ぎ）
+    } else if (ask === "regYm") {
       const ym = parseYm(text);
       if (!ym) return setMsgs((m) => [...m, { from: "bot", text: "年と月の両方を入力してください（例: 2019-05）。年のみでは判定できません。" }]);
       q.regYm = ym;
     } else if (ask === "conditions") {
       q.conditions = text === "該当なし" ? [] : [text];
-    } else if (!/スタッフ|担当者|人と話/.test(text)) {
+    } else {
       q = { modelCode: text };
     }
     setQuery(q);
@@ -189,8 +199,17 @@ export default function LinePreview() {
                 </button>
               </div>
               <p className="text-xs text-muted">
-                入力例: <code className="font-mono">3BA-AB10</code>（回答）・<code className="font-mono">5BA-CD20</code>（選択ボタンで質問）・
-                <code className="font-mono">DBA-EF30</code>（初度登録年月を質問）・<code className="font-mono">3BA-JK50</code>（スタッフへ引継ぎ）・「スタッフ」
+                {DBJ_SAMPLE ? (
+                  <>
+                    入力例: <code className="font-mono">DBA-GT7</code>（回答）・<code className="font-mono">DBA-NSP130</code>（初度登録年月を質問）・
+                    <code className="font-mono">3DA-205004</code>（スタッフへ引継ぎ）・「スタッフ」
+                  </>
+                ) : (
+                  <>
+                    入力例: <code className="font-mono">3BA-AB10</code>（回答）・<code className="font-mono">5BA-CD20</code>（選択ボタンで質問）・
+                    <code className="font-mono">DBA-EF30</code>（初度登録年月を質問）・<code className="font-mono">3BA-JK50</code>（スタッフへ引継ぎ）・「スタッフ」
+                  </>
+                )}
               </p>
             </div>
           </section>

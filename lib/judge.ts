@@ -84,6 +84,8 @@ function inPeriod(ym: string, from?: string | null, to?: string | null) {
 const fmtPeriod = (v: Row) =>
   `${v.period_basis}: ${v.period_from ?? "不明"}～${v.period_to ?? ""}（原文: ${v.period_raw ?? "なし"}）`;
 
+const batteryLabel = (b: Row) => `${b.role} ${b.category} ${b.spec_code}${b.qty > 1 ? ` ×${b.qty}` : ""}`;
+
 export function judgeVehicle(q: VehicleQuery, d: MasterData): JudgeResult {
   const norm = normModel(q.modelCode);
   const steps: string[] = [`型式を正規化: 「${q.modelCode}」→「${norm}」（接頭辞は削除しない）`];
@@ -91,10 +93,21 @@ export function judgeVehicle(q: VehicleQuery, d: MasterData): JudgeResult {
 
   const all = d.vehicles.filter((v) => normModel(v.model_code) === norm);
   if (all.length === 0) {
-    const hints = d.vehicles
-      .filter((v) => norm && withoutPrefix(v.model_code) === withoutPrefix(norm) && normModel(v.model_code) !== norm)
-      .map((v) => `接頭辞違いの登録あり: ${v.model_code}（${v.car_name}）— 自動では採用しません。車検証の型式を再確認してください`);
+    const hints = [
+      ...new Set(
+        d.vehicles
+          .filter((v) => norm && withoutPrefix(v.model_code) === withoutPrefix(norm) && normModel(v.model_code) !== norm)
+          .map((v) => `接頭辞違いの登録あり: ${v.model_code}（${v.car_name}）— 自動では採用しません。車検証の型式を再確認してください`),
+      ),
+    ];
     steps.push("一致する型式なし");
+    // バッテリーの品番・規格表記が入力された場合は検索画面を案内する（判定には使わない）
+    const key = partKey(q.modelCode);
+    const isBattery =
+      d.ownProducts.some((o) => partKey(o.part_no) === key) ||
+      d.products.some((p) => partKey(p.part_no) === key || splitList(p.aliases).some((a) => partKey(a) === key)) ||
+      !!parseSpec(q.modelCode);
+    if (isBattery) hints.push(`「${q.modelCode}」はバッテリーの品番または規格表記のようです。「バッテリー品番検索」で検索してください`);
     return {
       ...base,
       state: "not_found",
@@ -220,14 +233,25 @@ export function judgeVehicle(q: VehicleQuery, d: MasterData): JudgeResult {
     const vs = sourceOf(d, c.source_id);
     if (!truthy(vs?.customer_use)) reasons.push(`車両データの出典「${vs?.name}」は顧客回答に利用できません`);
     if (c.batteries.length === 0) reasons.push("搭載バッテリー要件が未登録です");
+    // 候補が 1 件でも未承認なら確定しない（先頭行だけで判断しない）
+    for (const b of c.batteries) {
+      const label = batteryLabel(b);
+      const add = (r: string) => {
+        if (!reasons.includes(r)) reasons.push(r);
+      };
+      if (b.status !== "適合確認済み") add(`${label}: 搭載要件が「${b.status}」です`);
+      const bs = sourceOf(d, b.source_id);
+      if (!truthy(bs?.customer_use)) add(`${label}: 要件の出典「${bs?.name}」は顧客回答に利用できません`);
+      if (b.condition) {
+        steps.push(`${label}: 条件「${b.condition}」付きの要件`);
+        const met = new Set([...splitList(c.conditions), ...(q.conditions ?? [])]);
+        if (!splitList(b.condition).every((x) => met.has(x))) add(`${label}: 「${b.condition}」の場合の要件です。該当するか確認してください`);
+      }
+    }
   }
   const rep = live[0];
   for (const b of rep.batteries) {
-    const label = `${b.role} ${b.category} ${b.spec_code}${b.qty > 1 ? ` ×${b.qty}` : ""}`;
-    if (b.status !== "適合確認済み") reasons.push(`${label}: 搭載要件が「${b.status}」です`);
-    const bs = sourceOf(d, b.source_id);
-    if (!truthy(bs?.customer_use)) reasons.push(`${label}: 要件の出典「${bs?.name}」は顧客回答に利用できません`);
-    if (b.condition) steps.push(`${label}: 条件「${b.condition}」付きの要件`);
+    const label = batteryLabel(b);
     for (const m of b.mappings)
       internalParts.push({ role: b.role, part_no: m.own_part_no, status: m.status, customer_use: m.customer_use && m.source_customer_use });
     if (b.mappings.length === 0) {
@@ -285,7 +309,7 @@ export function judgeVehicle(q: VehicleQuery, d: MasterData): JudgeResult {
     `適用期間: ${fmtPeriod(rep)}`,
     ...(rep.conditions ? [`装備条件: ${splitList(rep.conditions).join("・")}`] : []),
     ...(rep.engine_code ? [`原動機型式: ${rep.engine_code}`] : []),
-    ...rep.batteries.map((b) => `搭載要件（${b.role}）: ${b.category} ${b.spec_code}${b.qty > 1 ? ` ×${b.qty}個` : ""}`),
+    ...rep.batteries.map((b) => `搭載要件（${b.role}）: ${b.category} ${b.spec_code}${b.qty > 1 ? ` ×${b.qty}個` : ""}${b.condition ? `（条件: ${b.condition}）` : ""}`),
     ...rep.batteries.flatMap((b) => b.mappings.filter((m) => m.conditions).map((m) => `対応条件（${m.own_part_no}）: ${m.conditions}`)),
     ...(live.length > 1 ? [`同一要件の仕様 ${live.length} 件に共通`] : []),
   ];
@@ -345,6 +369,19 @@ function resolveCategory(spec: ParsedSpec, type?: BatteryType): { category?: str
   return { category: t === "通常" ? "LN" : `LN ${t}` };
 }
 
+/** 入力された規格表記・電池種別が品番の仕様と一致するか（不一致なら確定しない） */
+function inputMismatch(q: ProductQuery, specIn: string, part: Row, partNo: string) {
+  const reasons: string[] = [];
+  if (specIn) {
+    const ps = parseSpec(specIn);
+    if (!ps || ps.spec_code !== part.spec_code)
+      reasons.push(`入力された規格表記「${specIn}」と、品番 ${partNo} の規格（${part.spec_code}）が一致しません`);
+  }
+  if (q.batteryType && typeOf(part.category) !== q.batteryType)
+    reasons.push(`入力された電池種別「${q.batteryType}」と、品番 ${partNo} の種別（${typeOf(part.category)}）が一致しません`);
+  return reasons;
+}
+
 export function judgeProduct(q: ProductQuery, d: MasterData): JudgeResult {
   const partIn = (q.partNo ?? "").trim();
   const specIn = (q.spec ?? "").trim();
@@ -365,6 +402,9 @@ export function judgeProduct(q: ProductQuery, d: MasterData): JudgeResult {
     extra.matchedBy = "own";
     extra.ownProduct = own;
     steps.push("自社品番に一致");
+    const reasons = inputMismatch(q, specIn, own, own.part_no);
+    if (reasons.length)
+      return { ...base, state: "needs_check", headline: "入力内容が一致しません", reasons, missing: [], hints: [], product: extra };
     return {
       ...base,
       state: "confirmed",
@@ -406,15 +446,7 @@ export function judgeProduct(q: ProductQuery, d: MasterData): JudgeResult {
         product: extra,
       };
 
-    const reasons: string[] = [];
-    // 入力された規格表記・電池種別との整合（不一致なら確定しない）
-    if (specIn) {
-      const ps = parseSpec(specIn);
-      if (!ps || ps.spec_code !== p0.spec_code)
-        reasons.push(`入力された規格表記「${specIn}」と、品番 ${p0.part_no} の規格（${p0.spec_code}）が一致しません`);
-    }
-    if (q.batteryType && typeOf(p0.category) !== q.batteryType)
-      reasons.push(`入力された電池種別「${q.batteryType}」と、品番 ${p0.part_no} の種別（${typeOf(p0.category)}）が一致しません`);
+    const reasons = inputMismatch(q, specIn, p0, p0.part_no);
 
     const ms = extra.products[0].mappings;
     if (ms.length === 0) {
@@ -472,19 +504,20 @@ export function judgeProduct(q: ProductQuery, d: MasterData): JudgeResult {
   const specText = specIn || partIn;
   const spec = specText ? parseSpec(specText) : null;
   if (spec) {
+    const ignored = partIn && specIn ? [`入力された品番「${partIn}」は未登録のため、規格表記「${specIn}」のみで検索しました`] : [];
     const resolved = resolveCategory(spec, q.batteryType);
     extra.matchedBy = "spec";
     extra.spec = { category: resolved.category, spec_code: spec.spec_code };
     steps.push(`規格表記として解析: ${spec.spec_code}（${resolved.category ?? "規格区分未確定"}）`);
     if (resolved.error)
-      return { ...base, state: "needs_check", headline: "入力内容が一致しません", reasons: [resolved.error], missing: [], hints: [], product: extra };
+      return { ...base, state: "needs_check", headline: "入力内容が一致しません", reasons: [...ignored, resolved.error], missing: [], hints: [], product: extra };
     if (!resolved.category) {
       extra.sameSpec = d.products.filter((p) => p.spec_code === spec.spec_code);
       return {
         ...base,
         state: "needs_check",
         headline: "電池種別の指定が必要です",
-        reasons: [`${spec.spec_code} だけでは通常品・EFB・AGM を判別できません。同サイズでも互換扱いしません`],
+        reasons: [...ignored, `${spec.spec_code} だけでは通常品・EFB・AGM を判別できません。同サイズでも互換扱いしません`],
         missing: [resolved.missing!],
         hints: [],
         product: extra,
@@ -500,13 +533,13 @@ export function judgeProduct(q: ProductQuery, d: MasterData): JudgeResult {
         ...base,
         state: "not_found",
         headline: "この規格の自社対応がありません",
-        reasons: [`${category} ${spec.spec_code} に対応する自社品番は登録されていません`],
+        reasons: [...ignored, `${category} ${spec.spec_code} に対応する自社品番は登録されていません`],
         missing: [],
         hints: [],
         product: extra,
       };
     const m = extra.specMappings[0];
-    const reasons: string[] = [];
+    const reasons = [...ignored];
     if (extra.specMappings.length > 1) reasons.push("自社候補が複数あります");
     if (m.status !== "自社対応確認済み") reasons.push(`自社対応「${m.own_part_no}」は未承認です`);
     else if (!m.customer_use || !m.source_customer_use) reasons.push(`「${m.own_part_no}」は顧客回答に利用不可（出典: ${m.source_name}）`);
@@ -521,7 +554,7 @@ export function judgeProduct(q: ProductQuery, d: MasterData): JudgeResult {
     headline: "該当する品番が未登録です",
     reasons: ["入力された品番・規格表記に一致するデータがありません"],
     missing: [],
-    hints: [],
+    hints: d.vehicles.some((v) => normModel(v.model_code) === normModel(specText)) ? [`「${specText}」は車両の型式です。「車両から検索」で検索してください`] : [],
     product: extra,
   };
 }

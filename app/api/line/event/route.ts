@@ -3,9 +3,12 @@ import { db } from "@/lib/db";
 import { judgeVehicle, type VehicleQuery } from "@/lib/judge";
 import { getSetting, loadMaster, logAnswer } from "@/lib/repo";
 import { fail, ok } from "@/lib/api";
+import { DBJ_SAMPLE } from "@/lib/profile";
 
 // オプション A（LINE 受付）＋ C（自動返信）のデモ。実運用では LINE Messaging API の Webhook がここに届く。
 // 判定は Phase 1 の judgeVehicle をそのまま使い、本処理では「送信可否の制御・引継ぎ・二重回答防止」だけを担う。
+
+const FAILURE_TEXT = "ただいまシステムの不具合により自動でご案内できません。担当者より改めてご連絡いたします。";
 
 type Reply = { text: string; quickReplies?: string[]; ask?: "regYm" | "conditions" | "modelCode" };
 
@@ -43,7 +46,7 @@ export async function POST(req: Request) {
   // 3) 障害時の案内
   if (body.simulateFailure) {
     log.push("判定処理でエラー発生（模擬）→ 障害時の定型案内を返信し、スタッフへ通知");
-    replies.push({ text: "ただいまシステムの不具合により自動でご案内できません。担当者より改めてご連絡いたします。" });
+    replies.push({ text: FAILURE_TEXT });
     return done("failure");
   }
 
@@ -70,13 +73,22 @@ export async function POST(req: Request) {
 
   const q: VehicleQuery = body.query ?? {};
   if (!q.modelCode) {
-    replies.push({ text: "車検証に記載の「型式」を入力してください（例: 3BA-AB10）。\n画像で送る場合は車検証の写真を送信してください。", ask: "modelCode" });
+    replies.push({ text: `車検証に記載の「型式」を入力してください（例: ${DBJ_SAMPLE ? "DBA-NSP130" : "3BA-AB10"}）。\n画像で送る場合は車検証の写真を送信してください。`, ask: "modelCode" });
     return done("ask_model");
   }
 
   // 5) 共通判定処理
-  const result = judgeVehicle(q, await loadMaster());
-  await logAnswer("line-demo", result);
+  // 判定に失敗しても無応答にせず、障害時の案内を返す（再送は二重回答防止で破棄されるため）
+  let result;
+  try {
+    result = judgeVehicle(q, await loadMaster());
+    await logAnswer("line-demo", result);
+  } catch (e) {
+    console.error(e);
+    log.push("判定処理でエラー発生 → 障害時の定型案内を返信し、スタッフへ通知");
+    replies.push({ text: FAILURE_TEXT });
+    return done("failure");
+  }
   log.push(`共通判定: ${result.state}（${result.headline}）`);
 
   // 6) 追加質問で解消できる不足は質問する（オプション A）
@@ -89,6 +101,7 @@ export async function POST(req: Request) {
       replies.push({ text: "車検証の「初度登録年月」を入力してください（例: 2019-05）。", ask: "regYm" });
     } else {
       await handoff(`不足項目「${m}」は選択肢で確認できない`);
+      return done("handoff");
     }
     log.push(`不足項目「${m}」→ 追加質問`);
     return done("ask_more");
