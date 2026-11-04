@@ -57,7 +57,7 @@ export function AccountInfo() {
   );
 }
 
-type Backup = { frequency: string; retention_days: number; destination: string; notify: boolean };
+type Backup = { frequency: string; retention_days: number };
 
 export function BackupSettings({ initial }: { initial: Backup }) {
   const { actor } = useActor();
@@ -85,11 +85,11 @@ export function BackupSettings({ initial }: { initial: Backup }) {
               実行頻度
             </label>
             <select id="bk-freq" className="field" value={b.frequency} onChange={(e) => setB({ ...b, frequency: e.target.value })}>
-              {["毎日 3:00", "毎日 3:00 と 15:00", "毎週月曜 3:00"].map((f) => (
+              {["毎日 3:00", "毎週月曜 3:00"].map((f) => (
                 <option key={f}>{f}</option>
               ))}
             </select>
-            <p className="mt-1 text-xs text-muted">利用の少ない時間帯に自動で保存します</p>
+            <p className="mt-1 text-xs text-muted">日本時間の早朝に自動で保存します（実行時刻は前後する場合があります）</p>
           </div>
           <div>
             <label htmlFor="bk-ret" className="field-label">
@@ -98,17 +98,6 @@ export function BackupSettings({ initial }: { initial: Backup }) {
             <input id="bk-ret" type="number" min={7} max={365} className="field tnum" value={b.retention_days} onChange={(e) => setB({ ...b, retention_days: Number(e.target.value) })} />
             <p className="mt-1 text-xs text-muted">7〜365 日。期間を過ぎたバックアップは自動で削除されます</p>
           </div>
-          <div className="md:col-span-2">
-            <label htmlFor="bk-dest" className="field-label">
-              保存先
-            </label>
-            <input id="bk-dest" className="field" value={b.destination} onChange={(e) => setB({ ...b, destination: e.target.value })} />
-            <p className="mt-1 text-xs text-muted">DBJ 名義のアカウントを推奨（保守会社が変わっても引き継げます）</p>
-          </div>
-          <label className="flex items-center gap-2 text-[13px] md:col-span-2">
-            <input type="checkbox" className="h-4 w-4 accent-action" checked={b.notify} onChange={(e) => setB({ ...b, notify: e.target.checked })} />
-            バックアップに失敗した場合、承認者にメールで通知する
-          </label>
         </fieldset>
       </div>
       <div className="flex justify-end border-t border-line px-5 py-3">

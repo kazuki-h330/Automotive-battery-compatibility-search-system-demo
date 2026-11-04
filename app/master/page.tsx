@@ -1,13 +1,14 @@
 import type { Metadata } from "next";
 import Link from "next/link";
 import { Archive, Download, History, RotateCcw } from "lucide-react";
+import { BackupList } from "@/components/backup-list";
 import { CSVUploadPanel } from "@/components/csv-upload-panel";
 import { DataTable } from "@/components/data-table";
 import { PageHeader, SectionTitle, fmtDate } from "@/components/page-header";
 import { ApprovalStatusBadge, Badge } from "@/components/status-badge";
 import { AlertMessage } from "@/components/alert-message";
 import { DATASETS, getDataset, type DatasetId } from "@/lib/datasets";
-import { DEFAULT_BACKUP, getSetting, loadDataset, publishedDetails } from "@/lib/repo";
+import { DEFAULT_BACKUP, getSetting, listBackups, loadDataset, publishedDetails } from "@/lib/repo";
 import type { Row } from "@/lib/db";
 
 export const dynamic = "force-dynamic";
@@ -99,6 +100,7 @@ async function Versions() {
 
 async function Backup() {
   const backup = await getSetting("backup", DEFAULT_BACKUP);
+  const saved = (await listBackups()) as any[];
   return (
     <div className="grid gap-4 lg:grid-cols-2">
       <section className="card">
@@ -130,11 +132,12 @@ async function Backup() {
           <dt className="text-muted">保持期間</dt>
           <dd className="tnum">{backup.retention_days} 日</dd>
           <dt className="text-muted">保存先</dt>
-          <dd>{backup.destination}</dd>
+          <dd>システムのデータベース内の専用領域（下の一覧から JSON で取得できます）</dd>
           <dt className="text-muted">DB の履歴保持</dt>
           <dd>任意の時点へ戻せるデータベース機能（ポイントインタイム復元）を併用</dd>
         </dl>
       </section>
+      <BackupList initial={saved.map((b) => ({ ...b, at: new Date(b.at).toISOString() }))} />
       <section className="card lg:col-span-2">
         <SectionTitle>旧版への復元</SectionTitle>
         <div className="flex flex-col gap-3 px-5 py-4 text-[13px] md:flex-row md:items-center md:justify-between">

@@ -182,7 +182,31 @@ export async function reject(id: number, actor: Actor, note?: string) {
 
 // ---------------- 設定 ----------------
 
-export const DEFAULT_BACKUP = { frequency: "毎日 3:00", retention_days: 30, destination: "DBJ 名義のクラウドストレージ", notify: true };
+export const BACKUP_FREQUENCIES = ["毎日 3:00", "毎週月曜 3:00"];
+export const DEFAULT_BACKUP = { frequency: "毎日 3:00", retention_days: 30 };
+
+/** 全マスターと設定をバックアップとして保存し、保持期間を過ぎたものを削除する */
+export async function createBackup(trigger: "scheduled" | "manual", actor: string | null) {
+  const master = await loadAllLive();
+  const settings = await db().query(`SELECT * FROM app_settings`);
+  const count = Object.values(master).reduce((n, rows) => n + rows.length, 0);
+  const [backup] = await db().query(
+    `INSERT INTO backups (trigger_type, actor, row_count, data) VALUES ($1, $2, $3, $4::jsonb) RETURNING id, at, row_count`,
+    [trigger, actor, count, JSON.stringify({ versions: await publishedVersions(), data: master, settings })],
+  );
+  const { retention_days } = await getSetting("backup", DEFAULT_BACKUP);
+  await db().query(`DELETE FROM backups WHERE at < now() - make_interval(days => $1::int)`, [retention_days]);
+  return backup;
+}
+
+export async function listBackups() {
+  return db().query(`SELECT id, at, trigger_type, actor, row_count FROM backups ORDER BY id DESC LIMIT 100`);
+}
+
+export async function getBackup(id: number) {
+  if (!Number.isInteger(id) || id < 1 || id > 2147483647) return undefined;
+  return (await db().query(`SELECT * FROM backups WHERE id = $1`, [id]))[0];
+}
 
 export async function getSetting<T>(key: string, fallback: T): Promise<T> {
   const rows = await db().query<{ value: T }>(`SELECT value FROM app_settings WHERE key = $1`, [key]);

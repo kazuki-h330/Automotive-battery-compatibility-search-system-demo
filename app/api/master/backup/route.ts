@@ -1,7 +1,7 @@
 import { db } from "@/lib/db";
 import { loadAllLive } from "@/lib/repo";
 
-// 全マスターと版履歴の一括バックアップ（JSON）。本番では日次で自動取得し、Neon の PITR と併用する想定
+// 全マスターと版履歴の一括出力（JSON）。別業者への移行時にも使う。自動バックアップは /api/cron/backup
 export async function GET() {
   const data = await loadAllLive();
   const versions = await db().query(`SELECT * FROM master_versions ORDER BY id`);
