@@ -36,7 +36,9 @@ export default function LinePreview() {
   const [ocrDraft, setOcrDraft] = useState<VehicleQuery | null>(null);
   const endRef = useRef<HTMLDivElement>(null);
 
-  useEffect(() => endRef.current?.scrollIntoView({ behavior: "smooth", block: "nearest" }), [msgs]);
+  useEffect(() => {
+    endRef.current?.scrollIntoView({ behavior: "smooth", block: "nearest" });
+  }, [msgs]);
   // 再読み込み後に前回の引継ぎ状態が残り、無応答に見えるのを防ぐ
   useEffect(() => {
     postJson("/api/line/session", { userId: USER_ID });

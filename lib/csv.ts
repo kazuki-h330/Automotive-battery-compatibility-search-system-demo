@@ -89,6 +89,17 @@ export function parseCsv(text: string) {
   return { rows: res.data, headers: res.meta.fields ?? [], parseErrors: res.errors };
 }
 
+/** ヘッダーが完全に一致するデータセットを返す（対象マスターの選択ミス防止） */
+export function detectDataset(headers: string[]) {
+  const set = new Set(headers);
+  return DATASETS.find((d) => d.columns.length === set.size && d.columns.every((c) => set.has(c.name)));
+}
+
+/** ファイルの内容から対象マスターを判定する（1 行目のみ解析） */
+export function detectDatasetFromText(text: string) {
+  return detectDataset(parseCsv(text.split(/\r?\n/, 1)[0] ?? "").headers);
+}
+
 /**
  * live: 各データセットの公開中データ（参照整合チェックに使う）
  */
@@ -105,9 +116,15 @@ export function validateImport(
 
   const colNames = ds.columns.map((c) => c.name);
   const needCols = mode === "delete" ? [ds.key] : ds.columns.filter((c) => c.required).map((c) => c.name);
-  for (const n of needCols) if (!headers.includes(n)) errors.push({ line: 1, column: n, message: `必須列「${n}」がヘッダーにありません` });
-  for (const h of headers) if (!colNames.includes(h)) errors.push({ line: 1, column: h, message: `未定義の列「${h}」があります（定型 CSV 以外は取り込めません）` });
-  if (mode !== "delete") {
+  const other = detectDataset(headers);
+  const wrongTarget = !!other && other.id !== dsId;
+  // 別のマスター用の CSV は、列ごとのエラーを並べず原因だけを示す
+  if (wrongTarget) errors.push({ line: 1, message: `この CSV は「${other.label}」用です。対象マスターを「${other.label}」に変更してください` });
+  else {
+    for (const n of needCols) if (!headers.includes(n)) errors.push({ line: 1, column: n, message: `必須列「${n}」がヘッダーにありません` });
+    for (const h of headers) if (!colNames.includes(h)) errors.push({ line: 1, column: h, message: `未定義の列「${h}」があります（定型 CSV 以外は取り込めません）` });
+  }
+  if (mode !== "delete" && !wrongTarget) {
     const missingOptional = colNames.filter((c) => !headers.includes(c) && !needCols.includes(c));
     if (missingOptional.length)
       errors.push({ line: 1, message: `列が不足しています: ${missingOptional.join(", ")}（空欄で良い列もヘッダーは必要です。差分更新で値が消えるのを防ぐため）` });

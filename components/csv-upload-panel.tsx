@@ -9,7 +9,7 @@ import { ConfirmDialog } from "./confirm-dialog";
 import { DiffCounts, DiffPreview } from "./diff-preview";
 import { Badge } from "./status-badge";
 import { DATASETS, getDataset } from "@/lib/datasets";
-import { MODE_LABEL, type ValidationResult } from "@/lib/csv";
+import { MODE_LABEL, detectDatasetFromText, type ValidationResult } from "@/lib/csv";
 import { DBJ_SAMPLE } from "@/lib/profile";
 
 const STEPS = ["CSVアップロード", "形式検証", "差分確認", "承認", "本番反映"];
@@ -20,6 +20,21 @@ const SAMPLES = [
   { file: "vehicles_errors.csv", dataset: "vehicles", mode: "upsert", label: "形式・必須・参照エラーを含む", ok: false },
   { file: "vehicles_delete_referenced.csv", dataset: "vehicles", mode: "delete", label: "参照中の車両を削除指定", ok: false },
   { file: "vehicle_batteries_add.csv", dataset: "vehicle_batteries", mode: "upsert", label: "搭載要件の追加（参照先が必要）", ok: false },
+];
+
+// どの環境でも使えるテストデータ（public/samples/test）。上から順に取り込む
+const TEST_FILES = [
+  { file: "test/00_sources_add.csv", dataset: "sources", mode: "upsert", label: "① 出典を追加", ok: true },
+  { file: "test/01_own_products_add.csv", dataset: "own_products", mode: "upsert", label: "② 自社商品を追加", ok: true },
+  { file: "test/02_vehicles_add.csv", dataset: "vehicles", mode: "upsert", label: "③ 車両を追加", ok: true },
+  { file: "test/03_vehicle_batteries_add.csv", dataset: "vehicle_batteries", mode: "upsert", label: "④ 搭載要件を追加", ok: true },
+  { file: "test/04_own_mappings_add.csv", dataset: "own_mappings", mode: "upsert", label: "⑤ 自社対応を追加", ok: true },
+  { file: "test/05_own_mappings_change_to_unapproved.csv", dataset: "own_mappings", mode: "upsert", label: "⑥ 承認を取り消す（復元の確認用）", ok: true },
+  { file: "test/E1_vehicles_errors.csv", dataset: "vehicles", mode: "upsert", label: "エラー: 車両（形式・参照）", ok: false },
+  { file: "test/E2_vehicle_batteries_errors.csv", dataset: "vehicle_batteries", mode: "upsert", label: "エラー: 搭載要件（個数・区分）", ok: false },
+  { file: "test/E3_own_mappings_no_approver.csv", dataset: "own_mappings", mode: "upsert", label: "エラー: 承認者なしの承認済み", ok: false },
+  { file: "test/E4_vehicles_delete_referenced.csv", dataset: "vehicles", mode: "delete", label: "エラー: 参照中の車両を削除", ok: false },
+  { file: "test/E5_wrong_header.csv", dataset: "vehicles", mode: "upsert", label: "エラー: 定型外の列", ok: false },
 ];
 
 type Mode = "upsert" | "replace" | "delete";
@@ -64,6 +79,7 @@ export function CSVUploadPanel() {
   const [error, setError] = useState("");
   const [confirmOpen, setConfirmOpen] = useState(false);
   const [dragging, setDragging] = useState(false);
+  const [notice, setNotice] = useState("");
 
   const ds = getDataset(dataset)!;
   const step = published ? 5 : pending ? 4 : result?.ok ? 3 : csv ? 2 : 1;
@@ -76,6 +92,7 @@ export function CSVUploadPanel() {
     setPublished(null);
     setAllowDelete(false);
     setError("");
+    setNotice("");
     if (!keepDataset) setDataset("vehicles");
   }
 
@@ -85,11 +102,17 @@ export function CSVUploadPanel() {
     let text = new TextDecoder("utf-8").decode(buf);
     if (text.includes("�")) text = new TextDecoder("shift_jis").decode(buf);
     reset();
+    // ファイルの列から対象マスターを自動で選ぶ（選択ミスの防止）
+    const found = detectDatasetFromText(text);
+    if (found && found.id !== dataset) {
+      setDataset(found.id);
+      setNotice(`ファイルの列から、対象マスターを「${found.label}」に切り替えました`);
+    }
     setCsv(text);
     setFileName(f.name);
   }
 
-  async function loadSample(s: (typeof SAMPLES)[number]) {
+  async function loadSample(s: { file: string; dataset: string; mode: string }) {
     const text = await (await fetch(`/samples/${s.file}`)).text();
     reset();
     setDataset(s.dataset);
@@ -223,6 +246,27 @@ export function CSVUploadPanel() {
             </div>
           </section>
 
+          <details className="card group" open>
+            <summary className="flex cursor-pointer list-none items-center justify-between px-5 py-3 text-[13px] font-medium">
+              テストデータ（ワンクリックで読込）
+              <span className="text-xs font-normal text-muted group-open:hidden">表示</span>
+            </summary>
+            <p className="border-t border-line px-5 py-2.5 text-xs text-muted">
+              ①〜⑤を順番に「検証 → 申請 → 別の承認者で承認」すると、
+              <Link href="/search/vehicle?model=TEST-A100" className="text-action hover:underline">TEST-A100</Link> などで検索できます。
+            </p>
+            <ul className="divide-y divide-line-soft border-t border-line">
+              {TEST_FILES.map((s) => (
+                <li key={s.file}>
+                  <button onClick={() => loadSample(s)} className="flex w-full items-center gap-2 px-5 py-2 text-left hover:bg-canvas" disabled={!!pending}>
+                    <span className="min-w-0 flex-1 text-[13px]">{s.label}</span>
+                    <Badge tone={s.ok ? "success" : "error"}>{s.ok ? "正常" : "エラー"}</Badge>
+                  </button>
+                </li>
+              ))}
+            </ul>
+          </details>
+
           {/* サンプル CSV はデモ用データ前提のため、DBJ 様サンプル検証環境では表示しない */}
           {!DBJ_SAMPLE && <details className="card group">
             <summary className="flex cursor-pointer list-none items-center justify-between px-5 py-3 text-[13px] font-medium">
@@ -249,6 +293,7 @@ export function CSVUploadPanel() {
         {/* 右：検証・差分・承認・反映 */}
         <div className="min-w-0 space-y-4">
           {error && <AlertMessage variant="error" title="処理できませんでした">{error}</AlertMessage>}
+          {notice && <AlertMessage variant="info">{notice}</AlertMessage>}
 
           {step === 1 && (
             <section className="card px-5 py-10 text-center">

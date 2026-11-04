@@ -78,3 +78,8 @@ npm run data:convert -- <入力CSV> <出力フォルダ> [--basis 初度登録]
 
 サンプルデータのみを登録した別環境です。Vercel の別プロジェクトで `NEXT_PUBLIC_DATA_PROFILE=dbj-sample` を設定してビルドすると、
 入力例が DBJ 様のサンプルに切り替わります。空の DB は `node scripts/setup-db.mjs --empty` で作成できます。
+
+## テストデータ
+
+`public/samples/test/` にどの環境でも使えるテストデータがあります。「CSVマスター管理」の「テストデータ（ワンクリックで読込）」から読み込めます。
+①〜⑤を順番に「検証 → 申請 → 別の承認者で承認」すると、`TEST-A100` などの型式で検索できます。

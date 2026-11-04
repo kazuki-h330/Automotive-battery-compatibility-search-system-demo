@@ -101,6 +101,13 @@ export function judgeVehicle(q: VehicleQuery, d: MasterData): JudgeResult {
       ),
     ];
     steps.push("一致する型式なし");
+    // バッテリーの品番・規格表記が入力された場合は検索画面を案内する（判定には使わない）
+    const key = partKey(q.modelCode);
+    const isBattery =
+      d.ownProducts.some((o) => partKey(o.part_no) === key) ||
+      d.products.some((p) => partKey(p.part_no) === key || splitList(p.aliases).some((a) => partKey(a) === key)) ||
+      !!parseSpec(q.modelCode);
+    if (isBattery) hints.push(`「${q.modelCode}」はバッテリーの品番または規格表記のようです。「バッテリー品番検索」で検索してください`);
     return {
       ...base,
       state: "not_found",
@@ -547,7 +554,7 @@ export function judgeProduct(q: ProductQuery, d: MasterData): JudgeResult {
     headline: "該当する品番が未登録です",
     reasons: ["入力された品番・規格表記に一致するデータがありません"],
     missing: [],
-    hints: [],
+    hints: d.vehicles.some((v) => normModel(v.model_code) === normModel(specText)) ? [`「${specText}」は車両の型式です。「車両から検索」で検索してください`] : [],
     product: extra,
   };
 }
