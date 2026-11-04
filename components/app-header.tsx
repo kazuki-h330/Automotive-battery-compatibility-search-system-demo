@@ -6,6 +6,7 @@ import { useEffect, useRef, useState } from "react";
 import { Check, ChevronDown, Menu, Settings, UserRound } from "lucide-react";
 import { DEMO_ACTORS, ROLE_LABEL, useActor } from "./actor";
 import { titleFor } from "./nav";
+import { DBJ_SAMPLE } from "@/lib/profile";
 
 export function AppHeader({ onMenu, dbMode }: { onMenu: () => void; dbMode: "neon" | "demo" }) {
   const path = usePathname();
@@ -39,7 +40,7 @@ export function AppHeader({ onMenu, dbMode }: { onMenu: () => void; dbMode: "neo
         title={dbMode === "neon" ? "Neon（PostgreSQL）に接続中" : "インメモリのデモ DB で動作中（再起動で初期化）"}
       >
         <span className={`h-1.5 w-1.5 rounded-full ${dbMode === "neon" ? "bg-ok" : "bg-warn"}`} aria-hidden />
-        {dbMode === "neon" ? "本番 DB 接続" : "デモ環境"}
+        {DBJ_SAMPLE ? "DBJ様サンプル検証環境" : dbMode === "neon" ? "本番 DB 接続" : "デモ環境"}
       </span>
 
       <div className="relative" ref={ref}>

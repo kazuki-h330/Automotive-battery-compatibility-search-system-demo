@@ -8,6 +8,7 @@ import { DiffCounts } from "@/components/diff-preview";
 import { MODE_LABEL } from "@/lib/csv";
 import { DATASETS, getDataset } from "@/lib/datasets";
 import { db, type Row } from "@/lib/db";
+import { DBJ_SAMPLE } from "@/lib/profile";
 import { publishedDetails } from "@/lib/repo";
 
 export const dynamic = "force-dynamic";
@@ -40,7 +41,7 @@ export default async function Dashboard() {
           <label htmlFor="quick-model" className="field-label">
             車両型式ですぐに検索
           </label>
-          <input id="quick-model" name="model" className="field h-10! font-mono" placeholder="車検証の型式を入力（例: 3BA-AB10）" autoComplete="off" required />
+          <input id="quick-model" name="model" className="field h-10! font-mono" placeholder={`車検証の型式を入力（例: ${DBJ_SAMPLE ? "DBA-NSP130" : "3BA-AB10"}）`} autoComplete="off" required />
         </div>
         <button className="btn-primary h-10!">
           <Search size={16} aria-hidden /> 適合を検索

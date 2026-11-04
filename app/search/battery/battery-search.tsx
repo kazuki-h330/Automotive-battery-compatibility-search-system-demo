@@ -12,8 +12,16 @@ import { ExampleChips, Field, SearchForm } from "@/components/search-form";
 import { ApprovalStatusBadge, Badge, CustomerUseBadge } from "@/components/status-badge";
 import { BATTERY_TYPES, typeOf, type BatteryType, type JudgeResult, type MappingView, type ProductQuery } from "@/lib/judge";
 import type { Row } from "@/lib/db";
+import { DBJ_SAMPLE } from "@/lib/profile";
 
-const EXAMPLES: { label: string; q: ProductQuery }[] = [
+const EXAMPLES: { label: string; q: ProductQuery }[] = DBJ_SAMPLE ? [
+  { label: "自社品番 DBJ-Q85", q: { partNo: "DBJ-Q85" } },
+  { label: "規格 Q-85", q: { spec: "Q-85" } },
+  { label: "規格 LN4 × 通常", q: { spec: "LN4", batteryType: "通常" } },
+  { label: "規格 LN4 × EFB", q: { spec: "LN4", batteryType: "EFB" } },
+  { label: "規格 LN3 × EFB", q: { spec: "LN3", batteryType: "EFB" } },
+  { label: "規格 LN5（未登録）", q: { spec: "LN5", batteryType: "通常" } },
+] : [
   { label: "承認済みの置換", q: { partNo: "AL-55B24L" } },
   { label: "旧品番・別名", q: { partNo: "al55b24l-n" } },
   { label: "置換が未承認", q: { partNo: "DG-55B24L-STD" } },

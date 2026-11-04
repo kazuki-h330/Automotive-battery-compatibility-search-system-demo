@@ -1,6 +1,7 @@
 // Neon にスキーマとサンプルデータを投入する。
 //   npm run db:setup   … テーブル作成（未投入ならサンプルデータも投入）
 //   npm run db:reset   … 全テーブルを削除して作り直す（デモの初期化用）
+//   --empty            … サンプルデータを入れない（実データ・検証データの取込用）
 import { readFileSync, existsSync } from "node:fs";
 import { Pool } from "@neondatabase/serverless";
 
@@ -29,7 +30,9 @@ try {
   await pool.query(readFileSync("db/schema.sql", "utf8"));
   console.log("スキーマを作成しました");
   const { rows } = await pool.query("SELECT count(*)::int AS n FROM sources");
-  if (rows[0].n === 0) {
+  if (process.argv.includes("--empty")) {
+    console.log("サンプルデータは投入しません（空の DB）");
+  } else if (rows[0].n === 0) {
     await pool.query(readFileSync("db/seed.sql", "utf8"));
     console.log("サンプルデータ（架空）を投入しました");
   } else {
