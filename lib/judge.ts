@@ -96,6 +96,10 @@ export function judgeVehicle(q: VehicleQuery, d: MasterData): JudgeResult {
   const key = partKey(q.modelCode);
   const cases = (d.cases ?? []).filter((c) => normModel(c.model_code) === norm || (key && partKey(c.case_id) === key));
   const byCaseId = cases.some((c) => key && partKey(c.case_id) === key);
+  // 接頭辞違い（例: AGL20W と 3BA-AGL20W）は自動で採用せず、ヒントのみ表示する（汎用データと同じ扱い）
+  const prefixCases = cases.length
+    ? []
+    : (d.cases ?? []).filter((c) => norm && withoutPrefix(c.model_code) === withoutPrefix(norm) && normModel(c.model_code) !== norm);
   const r: JudgeResult = byCaseId
     ? {
         kind: "vehicle",
@@ -109,6 +113,11 @@ export function judgeVehicle(q: VehicleQuery, d: MasterData): JudgeResult {
         trace: { input: q, normalized: norm, steps: [`管理ID「${q.modelCode}」の実車確認記録を表示`] },
       }
     : judgeVehicleGeneral(q, d);
+  if (prefixCases.length)
+    r.hints = [
+      ...r.hints,
+      ...prefixCases.map((c) => `接頭辞違いの実車確認記録あり: ${c.model_code}（${c.maker} ${c.car_name ?? ""}・管理ID ${c.case_id}）— 自動では採用しません。車検証の型式を再確認してください`),
+    ];
   if (!cases.length) return r;
   r.cases = cases;
   const note = "実車確認記録は、記録された車両 1 台に限る確認です。型式が同じでも他の車両には適用せず、自動回答にも使いません";
@@ -445,7 +454,30 @@ function inputMismatch(q: ProductQuery, specIn: string, part: Row, partNo: strin
   return reasons;
 }
 
+/**
+ * 品番検索でも、実車確認記録に記載された品番は参考として添える（汎用の商品データとしては扱わない）。
+ * 記録は記録の車両 1 台に限るため、確定・回答文には使わない。
+ */
 export function judgeProduct(q: ProductQuery, d: MasterData): JudgeResult {
+  const r = judgeProductGeneral(q, d);
+  const key = partKey(q.partNo);
+  const cases = key ? (d.cases ?? []).filter((c) => partKey(c.own_part_no) === key) : [];
+  if (!cases.length) return r;
+  r.cases = cases;
+  r.trace.steps.push(`実車確認記録 ${cases.length} 件（${cases.map((c) => c.case_id).join(", ")}）に記載あり → 参考表示のみ`);
+  const note = "実車確認記録は記録された車両 1 台に限る確認のため、この品番の汎用の適合・置換には使いません";
+  if (r.state === "not_found")
+    return {
+      ...r,
+      state: "needs_check",
+      headline: "汎用の商品データは未登録です（実車確認記録に記載あり）",
+      reasons: [`品番「${(q.partNo ?? "").trim()}」は自社商品マスター・他社品番に登録されていません`, note],
+      hints: [],
+    };
+  return { ...r, hints: [...r.hints, `この品番は実車確認記録 ${cases.length} 件にも記載があります（参考）。${note}`] };
+}
+
+function judgeProductGeneral(q: ProductQuery, d: MasterData): JudgeResult {
   const partIn = (q.partNo ?? "").trim();
   const specIn = (q.spec ?? "").trim();
   const key = partKey(partIn);
