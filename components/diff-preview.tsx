@@ -44,7 +44,7 @@ const OP = {
   delete: { label: "削除", tone: "error" as const },
 };
 
-export function DiffPreview({ diff, dataset, limit = 300 }: { diff: DiffItem[]; dataset?: string; limit?: number }) {
+export function DiffPreview({ diff, dataset, limit = 300, total }: { diff: DiffItem[]; dataset?: string; limit?: number; total?: number }) {
   const [filter, setFilter] = useState<"all" | DiffItem["op"]>("all");
   const ds = dataset ? getDataset(dataset) : undefined;
   const label = (col: string) => ds?.columns.find((c) => c.name === col)?.label ?? col;
@@ -67,6 +67,11 @@ export function DiffPreview({ diff, dataset, limit = 300 }: { diff: DiffItem[]; 
           </button>
         ))}
       </div>
+      {(total ?? diff.length) > Math.min(limit, diff.length) && (
+        <p className="border-b border-line px-4 py-2 text-xs text-muted">
+          差分が多いため、先頭 {Math.min(limit, diff.length).toLocaleString()} 件のみ表示しています（全 {(total ?? diff.length).toLocaleString()} 件。件数は上の集計を参照）。
+        </p>
+      )}
       <div className="max-h-[440px] overflow-auto">
         <table className="dt">
           <thead>

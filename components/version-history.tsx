@@ -339,7 +339,7 @@ export function VersionHistory({ initialDataset = "" }: { initialDataset?: strin
                 <DiffCounts s={detail.summary} />
               </div>
               <div className="border-t border-line">
-                <DiffPreview diff={detail.diff ?? []} dataset={detail.dataset} />
+                <DiffPreview diff={detail.diff ?? []} dataset={detail.dataset} total={detail.diff_total} />
               </div>
             </div>
           )

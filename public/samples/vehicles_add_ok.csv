@@ -1,3 +1,3 @@
-id,maker,car_name,model_code,engine_code,grade_spec,conditions,period_basis,period_from,period_to,period_raw,status,source_id,note
-V001,サンプル自動車,サンプルワゴン,3BA-AB10,K12X,全グレード,,初度登録,2019-04,2023-03,2019年4月～2023年3月,適合確認済み,SRC-DBJ,2026-11 取扱説明書で再確認
-V012,サンプル自動車,サンプルワゴン,5BA-AB12,K12Y,全グレード,,初度登録,2023-04,,2023年4月～,適合確認済み,SRC-DBJ,新型
+id,maker,car_name,model_code,engine_code,type_specification_no,classification_no,grade_spec,conditions,period_basis,period_from,period_to,period_raw,status,source_id,note
+V001,サンプル自動車,サンプルワゴン,3BA-AB10,K12X,,,全グレード,,初度登録,2019-04,2023-03,2019年4月～2023年3月,適合確認済み,SRC-DBJ,2026-11 取扱説明書で再確認
+V012,サンプル自動車,サンプルワゴン,5BA-AB12,K12Y,,,全グレード,,初度登録,2023-04,,2023年4月～,適合確認済み,SRC-DBJ,新型

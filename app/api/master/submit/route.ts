@@ -1,6 +1,9 @@
 import { getDataset, type DatasetId } from "@/lib/datasets";
-import { submitImport } from "@/lib/repo";
+import { submitImport, trimForResponse } from "@/lib/repo";
 import { actorOf, fail, ok } from "@/lib/api";
+
+// 1 万行規模の取込・承認に備えて実行時間の上限を延ばす（Vercel）
+export const maxDuration = 300;
 
 export async function POST(req: Request) {
   try {
@@ -15,7 +18,7 @@ export async function POST(req: Request) {
       actorOf(body),
       body.allowDelete === true,
     );
-    if (!r.ok) return ok({ ok: false, validation: { ...r.validation, snapshot: undefined } }, { status: 422 });
+    if (!r.ok) return ok({ ok: false, validation: trimForResponse(r.validation) }, { status: 422 });
     return ok({ ok: true, version: r.version });
   } catch (e) {
     return fail(e);

@@ -148,7 +148,17 @@ export function CSVUploadPanel() {
     setFileName(`${flat.name.replace(/\.csv$/i, "")}_${id}.csv`);
   }
 
+  // 1 回の送信上限（約 4.5MB）を超えないよう、大きいファイルは分割を案内する
+  const MAX_BYTES = 4_000_000;
+  const tooLarge = () => {
+    const bytes = new Blob([csv]).size;
+    if (bytes <= MAX_BYTES) return false;
+    setError(`ファイルが大きすぎます（${(bytes / 1_000_000).toFixed(1)}MB）。1 ファイル約 4MB まで（目安: 車両データで約 2 万行）です。メーカー別などに分けて取り込んでください`);
+    return true;
+  };
+
   async function validate() {
+    if (tooLarge()) return;
     setBusy(true);
     setError("");
     const r = await postJson("/api/master/validate", { dataset, mode, csv });
@@ -158,6 +168,7 @@ export function CSVUploadPanel() {
   }
 
   async function submit() {
+    if (tooLarge()) return;
     setBusy(true);
     setError("");
     const r = await postJson("/api/master/submit", { dataset, mode, csv, fileName, actor: actorPayload(actor), allowDelete });
@@ -339,7 +350,7 @@ export function CSVUploadPanel() {
           {flat && (
             <section className="card overflow-hidden">
               <div className="flex flex-wrap items-center gap-2 border-b border-line px-5 py-3.5">
-                <h2 className="text-sm font-bold">DBJ 既存形式の CSV を変換しました</h2>
+                <h2 className="text-sm font-bold">DBJ 形式（{flat.result.format === "19" ? "19 列" : "旧 11 列"}）の CSV を変換しました</h2>
                 {flat.result.ok ? <Badge tone="success">変換 OK</Badge> : <Badge tone="error">エラー {flat.result.errors.length} 件</Badge>}
                 <span className="text-xs text-muted">{flat.name} ・ {flat.result.rowCount} 行</span>
               </div>
@@ -347,14 +358,16 @@ export function CSVUploadPanel() {
                 {flat.result.errors.length > 0 && (
                   <AlertMessage variant="error" title="エラーがあるため取り込めません">
                     <ul className="list-disc space-y-0.5 pl-4">
-                      {flat.result.errors.map((e) => <li key={e}>{e}</li>)}
+                      {flat.result.errors.slice(0, 200).map((e, i) => <li key={i}>{e}</li>)}
+                      {flat.result.errors.length > 200 && <li>ほか {flat.result.errors.length - 200} 件（変換レポートで全件を確認できます）</li>}
                     </ul>
                   </AlertMessage>
                 )}
                 {flat.result.warnings.length > 0 && (
                   <AlertMessage variant="warning" title="ご確認ください">
                     <ul className="list-disc space-y-0.5 pl-4">
-                      {flat.result.warnings.map((e) => <li key={e}>{e}</li>)}
+                      {flat.result.warnings.slice(0, 200).map((e, i) => <li key={i}>{e}</li>)}
+                      {flat.result.warnings.length > 200 && <li>ほか {flat.result.warnings.length - 200} 件</li>}
                     </ul>
                   </AlertMessage>
                 )}
@@ -368,7 +381,7 @@ export function CSVUploadPanel() {
                   <div>
                     <p className="mb-2 text-xs text-muted">参照関係があるため、上から順に「読込 → 検証 → 申請 → 別の承認者で承認」してください。変更がないマスターは次へ進んでください。</p>
                     <ol className="divide-y divide-line-soft rounded-lg border border-line">
-                      {FLAT_ORDER.map((id, i) => (
+                      {FLAT_ORDER.filter((id) => flat.result.csv[id]).map((id, i) => (
                         <li key={id} className="flex items-center gap-3 px-3 py-2">
                           <span className="w-5 text-center font-bold text-navy tnum">{i + 1}</span>
                           <span className="min-w-0 flex-1">
@@ -438,7 +451,12 @@ export function CSVUploadPanel() {
               </div>
               {result.errors.length > 0 && (
                 <div className="border-t border-line">
-                  <h3 className="px-5 pt-3 pb-2 text-[13px] font-bold text-bad">エラー行と理由</h3>
+                  <h3 className="px-5 pt-3 pb-2 text-[13px] font-bold text-bad">
+                    エラー行と理由
+                    {((result as { error_total?: number }).error_total ?? 0) > result.errors.length && (
+                      <span className="ml-2 font-normal text-muted">（全 {(result as { error_total?: number }).error_total} 件のうち先頭 {result.errors.length} 件）</span>
+                    )}
+                  </h3>
                   <div className="max-h-80 overflow-auto">
                     <table className="dt">
                       <thead>
@@ -469,7 +487,7 @@ export function CSVUploadPanel() {
               <div className="border-b border-line px-5 py-3.5">
                 <h2 className="text-sm font-bold">差分一覧（現在の公開データとの比較）</h2>
               </div>
-              <DiffPreview diff={result.diff} dataset={dataset} />
+              <DiffPreview diff={result.diff} dataset={dataset} total={(result as { diff_total?: number }).diff_total} />
               {result.ok && !pending && (
                 <div className="space-y-3 border-t border-line bg-canvas px-5 py-4">
                   {needsDeleteOk && (

@@ -72,7 +72,7 @@ function checkValue(ds: Dataset, r: Row, line: number, errors: CsvError[]) {
     if (from && to && from.slice(0, Math.min(from.length, to.length)) > to.slice(0, Math.min(from.length, to.length)))
       errors.push({ line, column: "period_from", message: `期間の開始（${from}）が終了（${to}）より後になっています` });
   }
-  if (ds.id === "vehicle_batteries" && /^-?\d+$/.test(toStr(r.qty) ?? "") && Number(r.qty) < 1)
+  if ((ds.id === "vehicle_batteries" || ds.id === "vehicle_cases") && /^-?\d+$/.test(toStr(r.qty) ?? "") && Number(r.qty) < 1)
     errors.push({ line, column: "qty", message: `「個数」は 1 以上で入力してください（${r.qty}）` });
   if (ds.id === "own_mappings") {
     if (r.match_type === "spec" && (!toStr(r.category) || !toStr(r.spec_code)))
@@ -82,6 +82,14 @@ function checkValue(ds: Dataset, r: Row, line: number, errors: CsvError[]) {
     if (r.status === "自社対応確認済み" && (!toStr(r.approved_by) || !toStr(r.approved_at)))
       errors.push({ line, message: "「自社対応確認済み」には承認者・承認日が必要です（開発側の推測で承認状態にしない）" });
   }
+  if (ds.id === "vehicle_cases") {
+    const use = ["true", "1", "TRUE", "はい", "可", "t", "yes"].includes(toStr(r.customer_use) ?? "");
+    if (use && r.status !== "実車確認済み") errors.push({ line, message: "回答可の実車確認記録は、確認状態を「実車確認済み」にしてください" });
+    if (use && (!toStr(r.approved_by) || !toStr(r.approved_at)))
+      errors.push({ line, message: "回答可の実車確認記録には承認者・承認日が必要です" });
+  }
+  if ((ds.id === "own_mappings" || ds.id === "vehicle_cases") && toStr(r.approved_at) && !/^\d{4}-\d{2}-\d{2}$/.test(toStr(r.approved_at)!))
+    errors.push({ line, column: "approved_at", message: `「承認日」は YYYY-MM-DD で入力してください（${r.approved_at}）` });
 }
 
 export function parseCsv(text: string) {

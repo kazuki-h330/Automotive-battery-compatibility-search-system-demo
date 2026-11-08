@@ -1,2 +1,2 @@
 id,match_type,category,spec_code,product_id,own_part_no,direction,status,customer_use,conditions,source_id,approved_by,approved_at,note
-SM005,spec,LN,LN2,,DBJ-LN2,双方向,未確認,false,,SRC-S-NG,,,ID 7 の承認取消テスト
+SM-LN-LN2-DBJ-LN2,spec,LN,LN2,,DBJ-LN2,双方向,未確認,false,,SRC-S-NG,,,ID 7 の承認取消テスト

@@ -13,6 +13,8 @@ export type MasterData = {
   sources: Row[];
   ownProducts: Row[];
   products: Row[];
+  /** 実車確認記録（実車 1 台限定）。参考表示のみで、判定・回答には使わない */
+  cases?: Row[];
 };
 
 export type VehicleQuery = {
@@ -56,6 +58,8 @@ export type JudgeResult = {
   internalParts: { role: string; part_no: string; status: string; customer_use: boolean }[];
   trace: { input: unknown; normalized: string; steps: string[] };
   product?: ProductResultExtra;
+  /** 参考：実車確認記録（記録の車両 1 台に限る。自動回答には使わない） */
+  cases?: Row[];
 };
 
 const sourceOf = (d: MasterData, id: string) => d.sources.find((s) => s.id === id);
@@ -86,7 +90,57 @@ const fmtPeriod = (v: Row) =>
 
 const batteryLabel = (b: Row) => `${b.role} ${b.category} ${b.spec_code}${b.qty > 1 ? ` ×${b.qty}` : ""}`;
 
+/** 実車確認記録は「記録された車両 1 台」に限る承認のため、型式が同じでも確定・自動回答には使わず参考として添える */
 export function judgeVehicle(q: VehicleQuery, d: MasterData): JudgeResult {
+  const norm = normModel(q.modelCode);
+  const key = partKey(q.modelCode);
+  const cases = (d.cases ?? []).filter((c) => normModel(c.model_code) === norm || (key && partKey(c.case_id) === key));
+  const byCaseId = cases.some((c) => key && partKey(c.case_id) === key);
+  // 接頭辞違い（例: AGL20W と 3BA-AGL20W）は自動で採用せず、ヒントのみ表示する（汎用データと同じ扱い）
+  const prefixCases = cases.length
+    ? []
+    : (d.cases ?? []).filter((c) => norm && withoutPrefix(c.model_code) === withoutPrefix(norm) && normModel(c.model_code) !== norm);
+  const r: JudgeResult = byCaseId
+    ? {
+        kind: "vehicle",
+        state: "not_found",
+        headline: "",
+        reasons: [],
+        missing: [],
+        hints: [],
+        candidates: [],
+        internalParts: [],
+        trace: { input: q, normalized: norm, steps: [`管理ID「${q.modelCode}」の実車確認記録を表示`] },
+      }
+    : judgeVehicleGeneral(q, d);
+  if (prefixCases.length)
+    r.hints = [
+      ...r.hints,
+      ...prefixCases.map((c) => `接頭辞違いの実車確認記録あり: ${c.model_code}（${c.maker} ${c.car_name ?? ""}・管理ID ${c.case_id}）— 自動では採用しません。車検証の型式を再確認してください`),
+    ];
+  if (!cases.length) return r;
+  r.cases = cases;
+  const note = "実車確認記録は、記録された車両 1 台に限る確認です。型式が同じでも他の車両には適用せず、自動回答にも使いません";
+  r.trace.steps.push(`実車確認記録 ${cases.length} 件（${cases.map((c) => c.case_id).join(", ")}）を参考表示 → 判定には使わない`);
+  if (r.candidates.length === 0) {
+    // 汎用の適合データがない：記録の車両と同一か、スタッフが車検証と照合する
+    return {
+      ...r,
+      state: "needs_check",
+      headline: byCaseId ? "実車確認記録です（記録の車両 1 台に限る）" : "汎用の適合データはなく、実車確認記録のみあります",
+      reasons: [
+        ...(byCaseId ? [] : ["この型式の汎用の適合データは未登録です"]),
+        note,
+        "お問い合わせの車両が記録の車両と同一か、車検証（型式指定番号・類別区分番号・初度登録年月・原動機型式）と管理IDの記録で確認してください",
+      ],
+      missing: [],
+      hints: r.hints.filter((h) => !h.includes("バッテリーの品番")),
+    };
+  }
+  return { ...r, hints: [...r.hints, `同じ型式の実車確認記録が ${cases.length} 件あります（参考）。${note}`] };
+}
+
+function judgeVehicleGeneral(q: VehicleQuery, d: MasterData): JudgeResult {
   const norm = normModel(q.modelCode);
   const steps: string[] = [`型式を正規化: 「${q.modelCode}」→「${norm}」（接頭辞は削除しない）`];
   const base = { kind: "vehicle" as const, trace: { input: q, normalized: norm, steps } };
@@ -296,6 +350,24 @@ export function judgeVehicle(q: VehicleQuery, d: MasterData): JudgeResult {
     };
   }
 
+  // 初度登録年月が未入力の場合は確定しない（誤適合ゼロを優先する運用。DBJ 様ご指示）
+  if (!q.regYm) {
+    steps.push("初度登録年月が未入力 → 適用期間を表示して確認要（確定しない）");
+    return {
+      ...base,
+      state: "needs_check",
+      headline: "初度登録年月を入力してください",
+      reasons: [
+        "初度登録年月が未入力のため、適合を確定しません",
+        ...live.map((c) => `登録されている適用期間 — ${fmtPeriod(c)}`),
+      ],
+      missing: ["初度登録年月"],
+      hints: [],
+      candidates: cands,
+      internalParts,
+    };
+  }
+
   steps.push("全項目確認済み・承認済み・顧客回答利用可 → 回答可");
   const lines = parts.map(
     (p) => `${p.role === "補機" ? "補機用" : "メイン"}バッテリー：「${p.part_no}」${p.qty > 1 ? `×${p.qty}個（同時搭載）` : ""}`,
@@ -382,7 +454,30 @@ function inputMismatch(q: ProductQuery, specIn: string, part: Row, partNo: strin
   return reasons;
 }
 
+/**
+ * 品番検索でも、実車確認記録に記載された品番は参考として添える（汎用の商品データとしては扱わない）。
+ * 記録は記録の車両 1 台に限るため、確定・回答文には使わない。
+ */
 export function judgeProduct(q: ProductQuery, d: MasterData): JudgeResult {
+  const r = judgeProductGeneral(q, d);
+  const key = partKey(q.partNo);
+  const cases = key ? (d.cases ?? []).filter((c) => partKey(c.own_part_no) === key) : [];
+  if (!cases.length) return r;
+  r.cases = cases;
+  r.trace.steps.push(`実車確認記録 ${cases.length} 件（${cases.map((c) => c.case_id).join(", ")}）に記載あり → 参考表示のみ`);
+  const note = "実車確認記録は記録された車両 1 台に限る確認のため、この品番の汎用の適合・置換には使いません";
+  if (r.state === "not_found")
+    return {
+      ...r,
+      state: "needs_check",
+      headline: "汎用の商品データは未登録です（実車確認記録に記載あり）",
+      reasons: [`品番「${(q.partNo ?? "").trim()}」は自社商品マスター・他社品番に登録されていません`, note],
+      hints: [],
+    };
+  return { ...r, hints: [...r.hints, `この品番は実車確認記録 ${cases.length} 件にも記載があります（参考）。${note}`] };
+}
+
+function judgeProductGeneral(q: ProductQuery, d: MasterData): JudgeResult {
   const partIn = (q.partNo ?? "").trim();
   const specIn = (q.spec ?? "").trim();
   const key = partKey(partIn);

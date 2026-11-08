@@ -1,6 +1,6 @@
 import type { Metadata } from "next";
 import { PageHeader } from "@/components/page-header";
-import { loadDataset } from "@/lib/repo";
+import { vehicleChoices } from "@/lib/repo";
 import { splitList } from "@/lib/normalize";
 import { VehicleSearch } from "./vehicle-search";
 
@@ -9,9 +9,9 @@ export const metadata: Metadata = { title: "車両から検索" };
 
 export default async function Page({ searchParams }: { searchParams: Promise<{ model?: string; reg?: string }> }) {
   const { model, reg } = await searchParams;
-  const vehicles = await loadDataset("vehicles");
-  const makers = [...new Set(vehicles.map((v) => v.maker as string))];
-  const conditions = [...new Set(vehicles.flatMap((v) => splitList(v.conditions)))];
+  const choices = await vehicleChoices();
+  const makers = choices.makers;
+  const conditions = [...new Set(choices.conditions.flatMap((c) => splitList(c)))];
   return (
     <>
       <PageHeader
