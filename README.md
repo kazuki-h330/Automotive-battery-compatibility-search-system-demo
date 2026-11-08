@@ -63,16 +63,41 @@ ApprovalStatusBadge, ResultCard, AlertMessage, EmptyState, LoadingSkeleton, Conf
 4. 再度 `3BA-JK50` を検索 → 確認済み・回答可に変わる
 5. 承認・更新履歴で旧版の「詳細 → この版に復元」→ 影響を確認して申請 → 「佐藤 由美（承認者）」で承認
 
-## 既存形式 CSV の変換（データ移行）
+## DBJ 形式 CSV の変換（データ移行）
 
-1 行 = 1 車両適合の横長 CSV を、定型 CSV 5 種（sources / own_products / vehicles / vehicle_batteries / own_mappings）に変換します。
+DBJ 様の横長 CSV（1 行 = 1 バッテリー要件）を、定型 CSV（sources / own_products / vehicles / vehicle_batteries / own_mappings / vehicle_cases）に変換します。
+画面の「CSVマスター管理」にそのままアップロードしても同じ変換が行われます（変換処理は `lib/flat.ts` に集約）。
 
 ```bash
 npm run data:convert -- <入力CSV> <出力フォルダ> [--basis 初度登録]
 ```
 
 `report.md` にエラーと要確認事項を出力します。エラーがある場合は取込用 CSV を出力しません。
-変換後の CSV は、上記の順に「CSVマスター管理」から取り込み、承認します。
+
+| 形式 | 列 | 扱い |
+| --- | --- | --- |
+| 19 列（本番） | 11 列 ＋ car_name / spec_note / battery_position / quantity / approved_by / approved_at / type_specification_no / classification_no | 同じ車両条件の行を 1 台にまとめ、主機・補機を要件として登録。車両・対応の ID は内容から決めるため、分割取込でも同じ ID |
+| 11 列（サンプル） | id〜customer_reply_allowed | 車名・承認者などは仮の値。サンプル検証環境用 |
+
+- **規格→自社品番の対応**は、確認済み・顧客回答可・承認者ありの行からのみ作成します。対応は全車両で共有されるため、条件不足・未登録の行で下げません（その車両は車両の確認状態で回答を止め、品番は要件の備考に社内参考として残します）。
+- **実車確認記録**：備考に管理ID（`DBJ-CASE-…`）や「1 台限定」「汎用適合マスターへの取込は禁止」の記載がある行は、汎用の適合データに入れず `vehicle_cases` に登録します。型式検索・管理ID検索で参考表示しますが、確定回答・自動返信には使いません。任意列 `record_scope`（汎用 / 実車確認）で明示もできます。
+- **規格区分**：JIS / JIS EFB / LN / LN EFB / LN AGM / DIN / DIN EFB / DIN AGM / EN / EN EFB / EN AGM。DIN・EN の規格表記は原表記を正規化して保持し、LN 等へ読み替えません。
+- 確認済み・顧客回答可の行は、年式（期間）と approved_by・approved_at が必須です。
+- 1 回の取込は約 4MB まで（Vercel の送信上限）。車両データで約 2 万行が目安です。それ以上はメーカー別などに分けます。
+
+### 判定ルール（DBJ 様ご回答による）
+
+- 初度登録年月が未入力の場合は、候補が 1 件でも確定せず、適用期間を表示して「確認要」とします。
+- 年式の基準は「初度登録」です。
+
+### 13,000 行規模の確認（インメモリ DB）
+
+変換 0.6 秒、取込（検証・申請・承認）各 1〜2 秒、車両検索 0.1〜0.2 秒、登録データ閲覧は 100 件ずつのページ表示。
+検索は型式に一致する車両とその要件のみを読み込みます（全件は読みません）。
+
+### 取込テスト用の空 DB
+
+`DATABASE_URL=" " DEMO_EMPTY=1 npm run dev` で、サンプルデータを入れないインメモリ DB で起動します。
 
 ## DBJ 様サンプル検証環境
 
@@ -83,11 +108,6 @@ npm run data:convert -- <入力CSV> <出力フォルダ> [--basis 初度登録]
 
 `public/samples/test/` にどの環境でも使えるテストデータがあります。「CSVマスター管理」の「テストデータ（ワンクリックで読込）」から読み込めます。
 ①〜⑤を順番に「検証 → 申請 → 別の承認者で承認」すると、`TEST-A100` などの型式で検索できます。
-
-## DBJ 既存形式 CSV の取込（画面）
-
-「CSVマスター管理」に既存形式の CSV をアップロードすると、定型 CSV 5 種へ自動で変換し、エラー・要確認事項と取込手順を表示します。
-変換処理は `lib/flat.ts` に集約しており、`npm run data:convert` と共通です。
 
 ## 自動バックアップ
 

@@ -64,7 +64,7 @@ export default async function Dashboard() {
         </AlertMessage>
       )}
 
-      {DBJ_SAMPLE && <SampleGuide />}
+      {DBJ_SAMPLE && <SampleGuide cases={(await db().query(`SELECT case_id, model_code FROM vehicle_cases ORDER BY id LIMIT 10`)) as { case_id: string; model_code: string }[]} />}
 
       <div className="mb-8 grid gap-4 sm:grid-cols-2 xl:grid-cols-4">
         {ACTIONS.map((a) => {

@@ -253,6 +253,11 @@ function CandidateList({ candidates }: { candidates: CandidateView[] }) {
                 <div className="mt-1 flex flex-wrap gap-x-4 gap-y-0.5 text-xs text-muted">
                   <span>{c.maker}</span>
                   <span>原動機 {c.engine_code ?? "—"}</span>
+                  {(c.type_specification_no || c.classification_no) && (
+                    <span className="tnum">
+                      型式指定 {c.type_specification_no ?? "—"}・類別 {c.classification_no ?? "—"}
+                    </span>
+                  )}
                   <span className="tnum">
                     {c.period_basis}基準 {c.period_from ?? "?"}～{c.period_to ?? ""}
                     {!c.period_comparable && <span className="ml-1 text-warn-ink">（初度登録年月と比較不可）</span>}
@@ -298,6 +303,7 @@ function CandidateList({ candidates }: { candidates: CandidateView[] }) {
                         </td>
                         <td className="text-xs text-muted">{b.raw_text}</td>
                         <td>
+                          {b.note && <div className="mb-1 text-xs text-muted">{b.note}</div>}
                           {b.mappings.length === 0 ? (
                             <span className="text-xs text-bad">自社対応なし</span>
                           ) : (

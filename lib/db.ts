@@ -45,7 +45,8 @@ function demoDb(): Db {
       const { PGlite } = await import("@electric-sql/pglite");
       const pg = (await PGlite.create()) as unknown as PGliteLike;
       await pg.exec(readSql("schema.sql"));
-      await pg.exec(readSql("seed.sql"));
+      // DEMO_EMPTY=1 のときはサンプルデータを入れない（取込テスト用）
+      if (process.env.DEMO_EMPTY !== "1") await pg.exec(readSql("seed.sql"));
       return pg;
     })();
   }

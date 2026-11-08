@@ -20,7 +20,7 @@ if (!url) {
 }
 
 const pool = new Pool({ connectionString: url });
-const TABLES = ["backups", "answer_logs", "master_versions", "own_mappings", "own_products", "products", "vehicle_batteries", "vehicles", "sources", "app_settings", "line_events", "line_sessions"];
+const TABLES = ["backups", "answer_logs", "master_versions", "vehicle_cases", "own_mappings", "own_products", "products", "vehicle_batteries", "vehicles", "sources", "app_settings", "line_events", "line_sessions"];
 
 try {
   if (process.argv.includes("--reset")) {

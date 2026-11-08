@@ -95,6 +95,11 @@ INSERT INTO app_settings (key, value) VALUES
 ('auto_reply_enabled', 'true'::jsonb),
 ('ocr_retention', '{"success_minutes":0,"failure_minutes":0,"note":"抽出後ただちに破棄。ログ・バックアップへ画像・全文を書き込まない"}'::jsonb);
 
+-- 実車確認記録（架空）。型式検索では参考表示のみで、自動回答には使わない
+INSERT INTO vehicle_cases (id, case_id, maker, car_name, model_code, engine_code, type_specification_no, classification_no, role, qty, category, spec_code, own_part_no, status, customer_use, scope_note, source_note, approved_by, approved_at) VALUES
+('C-DEMO-001', 'DBJ-CASE-DEMO-0001', 'トヨタ', '（架空）デモ車', '3BA-ZZ900', 'ZZ-TEST', '99999', '0001', '主機', 1, NULL, NULL, 'DBJ-DEMO-CASE', '実車確認済み', true,
+ '架空データ。実車 1 台限定の確認記録', '架空データ。この車両 1 台に限る回答承認。同型式の他車へは拡張しない', 'デモ承認者', '2026-11-01');
+
 -- 初版（v1）のスナップショット
 INSERT INTO master_versions (dataset, version_no, status, mode, summary, snapshot, submitted_by, reviewed_by, reviewed_at, review_note)
 SELECT d.dataset, 1, 'published', 'initial', jsonb_build_object('added', d.cnt, 'changed', 0, 'deleted', 0, 'total', d.cnt), d.snap, 'システム', 'システム', now(), '初期登録'
@@ -105,4 +110,5 @@ FROM (
   UNION ALL SELECT 'products', count(*), coalesce(jsonb_agg(to_jsonb(t) ORDER BY id), '[]') FROM products t
   UNION ALL SELECT 'own_products', count(*), coalesce(jsonb_agg(to_jsonb(t) ORDER BY part_no), '[]') FROM own_products t
   UNION ALL SELECT 'own_mappings', count(*), coalesce(jsonb_agg(to_jsonb(t) ORDER BY id), '[]') FROM own_mappings t
+  UNION ALL SELECT 'vehicle_cases', count(*), coalesce(jsonb_agg(to_jsonb(t) ORDER BY id), '[]') FROM vehicle_cases t
 ) d;

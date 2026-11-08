@@ -31,6 +31,9 @@ CREATE TABLE IF NOT EXISTS vehicles (
   note         text
 );
 CREATE INDEX IF NOT EXISTS vehicles_model_code_idx ON vehicles (upper(model_code));
+-- 型式指定番号・類別区分番号（先頭の 0 を保持するため文字列）。既存 DB には列を追加する
+ALTER TABLE vehicles ADD COLUMN IF NOT EXISTS type_specification_no text;
+ALTER TABLE vehicles ADD COLUMN IF NOT EXISTS classification_no text;
 
 -- 搭載バッテリー要件（型式と規格は 1 対 1 にしない）
 CREATE TABLE IF NOT EXISTS vehicle_batteries (
@@ -102,6 +105,29 @@ CREATE TABLE IF NOT EXISTS own_mappings (
   approved_by  text,
   approved_at  text,
   note         text
+);
+
+-- 実車確認記録（実車 1 台に限る確認。型式検索では参考表示のみ、自動回答には使わない）
+CREATE TABLE IF NOT EXISTS vehicle_cases (
+  id                    text PRIMARY KEY,
+  case_id               text NOT NULL,   -- 管理ID（例: DBJ-CASE-...）
+  maker                 text NOT NULL,
+  car_name              text,
+  model_code            text NOT NULL,
+  engine_code           text,
+  type_specification_no text,
+  classification_no     text,
+  role                  text,
+  qty                   integer,
+  category              text,
+  spec_code             text,
+  own_part_no           text NOT NULL,   -- 確認した品番（自社商品マスターへは登録しない）
+  status                text NOT NULL,   -- 実車確認済み / 未確認
+  customer_use          boolean NOT NULL DEFAULT false,
+  scope_note            text,
+  source_note           text,
+  approved_by           text,
+  approved_at           text
 );
 
 -- 版管理：取込・承認・反映・復元

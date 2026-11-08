@@ -1,10 +1,12 @@
 // 定型 CSV の仕様。CSV ヘッダー＝列名（英字）。取込検証・差分・エクスポート・画面表示で共通利用する。
 
-export const CATEGORIES = ["JIS", "JIS EFB", "LN", "LN EFB", "LN AGM"] as const;
+// DIN / EN は欧州規格の表記（例: DIN 56219、EN H5）。規格表記は原表記を正規化して保持し、LN への読み替えはしない
+export const CATEGORIES = ["JIS", "JIS EFB", "LN", "LN EFB", "LN AGM", "DIN", "DIN EFB", "DIN AGM", "EN", "EN EFB", "EN AGM"] as const;
 export const VEHICLE_STATUS = ["収集済み", "解析済み", "適合確認済み"] as const;
 export const PRODUCT_STATUS = ["収集済み", "解析済み"] as const;
 export const MAPPING_STATUS = ["未確認", "自社対応確認済み"] as const;
 export const PERIOD_BASIS = ["初度登録", "販売", "製造", "不明"] as const;
+export const CASE_STATUS = ["実車確認済み", "未確認"] as const;
 
 export type ColType = "text" | "int" | "num" | "bool" | "ym";
 export type Column = {
@@ -22,7 +24,8 @@ export type DatasetId =
   | "vehicle_batteries"
   | "products"
   | "own_products"
-  | "own_mappings";
+  | "own_mappings"
+  | "vehicle_cases";
 
 export type Dataset = {
   id: DatasetId;
@@ -59,6 +62,8 @@ export const DATASETS: Dataset[] = [
       { name: "car_name", label: "車名", required: true },
       { name: "model_code", label: "型式", required: true },
       { name: "engine_code", label: "原動機型式" },
+      { name: "type_specification_no", label: "型式指定番号" },
+      { name: "classification_no", label: "類別区分番号" },
       { name: "grade_spec", label: "グレード・仕様" },
       { name: "conditions", label: "装備条件" },
       { name: "period_basis", label: "期間の基準", required: true, enum: PERIOD_BASIS },
@@ -156,6 +161,33 @@ export const DATASETS: Dataset[] = [
       { name: "approved_by", label: "承認者" },
       { name: "approved_at", label: "承認日" },
       { name: "note", label: "備考" },
+    ],
+  },
+  {
+    id: "vehicle_cases",
+    label: "実車確認記録",
+    description: "実車 1 台に限る確認記録（管理ID 単位）。型式検索では参考表示のみで、自動回答には使わない",
+    key: "id",
+    columns: [
+      { name: "id", label: "記録ID", required: true },
+      { name: "case_id", label: "管理ID", required: true },
+      { name: "maker", label: "メーカー", required: true },
+      { name: "car_name", label: "車名" },
+      { name: "model_code", label: "型式", required: true },
+      { name: "engine_code", label: "原動機型式" },
+      { name: "type_specification_no", label: "型式指定番号" },
+      { name: "classification_no", label: "類別区分番号" },
+      { name: "role", label: "用途", enum: ["主機", "補機"] },
+      { name: "qty", label: "個数", type: "int" },
+      { name: "category", label: "規格区分", enum: CATEGORIES },
+      { name: "spec_code", label: "規格表記" },
+      { name: "own_part_no", label: "確認した品番", required: true },
+      { name: "status", label: "確認状態", required: true, enum: CASE_STATUS },
+      { name: "customer_use", label: "この車両への回答可", type: "bool", required: true },
+      { name: "scope_note", label: "仕様・範囲" },
+      { name: "source_note", label: "出典・根拠" },
+      { name: "approved_by", label: "承認者" },
+      { name: "approved_at", label: "承認日" },
     ],
   },
 ];

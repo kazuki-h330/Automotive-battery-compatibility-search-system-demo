@@ -8,7 +8,7 @@ import { PageHeader, SectionTitle, fmtDate } from "@/components/page-header";
 import { ApprovalStatusBadge, Badge } from "@/components/status-badge";
 import { AlertMessage } from "@/components/alert-message";
 import { DATASETS, getDataset, type DatasetId } from "@/lib/datasets";
-import { DEFAULT_BACKUP, getSetting, listBackups, loadDataset, publishedDetails } from "@/lib/repo";
+import { DEFAULT_BACKUP, getSetting, listBackups, loadPage, publishedDetails } from "@/lib/repo";
 import type { Row } from "@/lib/db";
 
 export const dynamic = "force-dynamic";
@@ -21,7 +21,7 @@ const TABS = [
   { id: "data", label: "登録データ閲覧" },
 ];
 
-export default async function MasterPage({ searchParams }: { searchParams: Promise<{ tab?: string; ds?: string }> }) {
+export default async function MasterPage({ searchParams }: { searchParams: Promise<{ tab?: string; ds?: string; page?: string; q?: string }> }) {
   const sp = await searchParams;
   const tab = TABS.some((t) => t.id === sp.tab) ? sp.tab! : "import";
 
@@ -47,7 +47,7 @@ export default async function MasterPage({ searchParams }: { searchParams: Promi
       {tab === "import" && <CSVUploadPanel />}
       {tab === "versions" && <Versions />}
       {tab === "backup" && <Backup />}
-      {tab === "data" && <DataBrowser ds={sp.ds} />}
+      {tab === "data" && <DataBrowser ds={sp.ds} page={Number(sp.page) || 1} q={sp.q} />}
     </>
   );
 }
@@ -153,9 +153,13 @@ async function Backup() {
   );
 }
 
-async function DataBrowser({ ds: dsParam }: { ds?: string }) {
+const PAGE_SIZE = 100;
+
+async function DataBrowser({ ds: dsParam, page, q }: { ds?: string; page: number; q?: string }) {
   const ds = getDataset(dsParam ?? "") ?? DATASETS[1];
-  const rows = await loadDataset(ds.id as DatasetId);
+  const { rows, total } = await loadPage(ds.id as DatasetId, page, PAGE_SIZE, q);
+  const pages = Math.max(1, Math.ceil(total / PAGE_SIZE));
+  const href = (p: number) => `/master?tab=data&ds=${ds.id}&page=${p}${q ? `&q=${encodeURIComponent(q)}` : ""}`;
   return (
     <div className="space-y-3">
       <div className="flex flex-wrap gap-1.5">
@@ -173,7 +177,23 @@ async function DataBrowser({ ds: dsParam }: { ds?: string }) {
         閲覧専用です。多数項目の直接編集画面は設けず、更新は定型 CSV ＋承認で行います。原表記・正規化値・確認状態・出典を分けて保持しています。
       </AlertMessage>
       <section className="card overflow-hidden">
-        <SectionTitle aside={<span className="text-xs text-muted tnum">{rows.length} 件</span>}>{ds.label}</SectionTitle>
+        <SectionTitle aside={<span className="text-xs text-muted tnum">{q ? `「${q}」の検索結果 ` : ""}{total.toLocaleString()} 件</span>}>{ds.label}</SectionTitle>
+        <div className="flex flex-wrap items-center justify-between gap-2 border-b border-line px-5 py-2.5">
+          <form action="/master" className="flex gap-1.5">
+            <input type="hidden" name="tab" value="data" />
+            <input type="hidden" name="ds" value={ds.id} />
+            <input name="q" defaultValue={q ?? ""} placeholder="キー・型式・品番で絞り込み" aria-label="絞り込み" className="field h-8 w-56 text-[13px]" />
+            <button className="btn-secondary btn-sm">絞り込む</button>
+            {q && <Link href={`/master?tab=data&ds=${ds.id}`} className="btn-ghost btn-sm">解除</Link>}
+          </form>
+          <nav className="flex items-center gap-1.5 text-xs text-muted tnum" aria-label="ページ">
+            {page > 1 ? <Link href={href(page - 1)} className="btn-ghost btn-sm">前へ</Link> : null}
+            <span>
+              {page} / {pages} ページ（{PAGE_SIZE} 件ずつ）
+            </span>
+            {page < pages ? <Link href={href(page + 1)} className="btn-ghost btn-sm">次へ</Link> : null}
+          </nav>
+        </div>
         <DataTable<Row>
           rows={rows}
           rowKey={(r) => r[ds.key]}

@@ -162,8 +162,60 @@ export function ResultCard({
           </div>
         </div>
       )}
+      {r.cases && r.cases.length > 0 && <CaseRecords cases={r.cases} />}
       {children}
     </section>
+  );
+}
+
+/** 参考：実車確認記録（記録の車両 1 台に限る。確定回答・自動返信には使わない） */
+function CaseRecords({ cases }: { cases: NonNullable<JudgeResult["cases"]> }) {
+  return (
+    <div className="border-t border-line px-5 py-4">
+      <div className="mb-1 flex flex-wrap items-center gap-2 text-[13px] font-bold">
+        参考：実車確認記録 <Badge tone="warning">記録の車両 1 台に限る</Badge>
+      </div>
+      <p className="mb-3 text-xs text-muted">
+        同じ型式の他の車両には適用しません。車検証の型式指定番号・類別区分番号・初度登録年月・原動機型式と、管理IDの記録を照合したうえでスタッフが判断してください。自動回答には使用しません。
+      </p>
+      <div className="space-y-3">
+        {cases.map((c) => (
+          <div key={c.id} className="rounded-lg border border-line px-4 py-3">
+            <div className="flex flex-wrap items-center gap-2">
+              <span className="font-mono text-xs font-bold text-navy">{c.case_id}</span>
+              <Badge tone={c.status === "実車確認済み" ? "success" : "neutral"}>{c.status}</Badge>
+              <Badge tone={c.customer_use === true || c.customer_use === "true" ? "navy" : "neutral"}>
+                {c.customer_use === true || c.customer_use === "true" ? "この車両への回答は承認済み" : "回答不可"}
+              </Badge>
+            </div>
+            <dl className="mt-2 grid gap-x-6 gap-y-1 text-[13px] sm:grid-cols-2">
+              <Item label="車両" value={`${c.maker} ${c.car_name ?? ""}／型式 ${c.model_code}`} />
+              <Item label="確認した品番" value={c.own_part_no} strong />
+              <Item label="原動機型式" value={c.engine_code} />
+              <Item label="型式指定番号・類別区分番号" value={c.type_specification_no || c.classification_no ? `${c.type_specification_no ?? "—"}・${c.classification_no ?? "—"}` : null} />
+              <Item label="搭載" value={c.role ? `${c.role}${c.qty ? `・${c.qty}個` : ""}${c.spec_code ? `（${c.category ?? ""} ${c.spec_code}）` : ""}` : null} />
+              <Item label="承認" value={c.approved_by ? `${c.approved_by}（${c.approved_at ?? "日付なし"}）` : null} />
+            </dl>
+            {c.scope_note && <p className="mt-2 text-xs leading-6 text-ink/80"><span className="font-medium">仕様・範囲：</span>{c.scope_note}</p>}
+            {c.source_note && (
+              <details className="mt-1 text-xs leading-6 text-ink/80">
+                <summary className="cursor-pointer text-action">出典・根拠を表示</summary>
+                {c.source_note}
+              </details>
+            )}
+          </div>
+        ))}
+      </div>
+    </div>
+  );
+}
+
+function Item({ label, value, strong }: { label: string; value?: string | null; strong?: boolean }) {
+  return (
+    <div className="flex gap-2">
+      <dt className="shrink-0 text-muted">{label}</dt>
+      <dd className={strong ? "font-bold text-navy" : ""}>{value || "—"}</dd>
+    </div>
   );
 }
 

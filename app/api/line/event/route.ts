@@ -1,7 +1,7 @@
 import { createHash } from "node:crypto";
 import { db } from "@/lib/db";
 import { judgeVehicle, type VehicleQuery } from "@/lib/judge";
-import { getSetting, loadMaster, logAnswer } from "@/lib/repo";
+import { getSetting, loadMasterFor, logAnswer } from "@/lib/repo";
 import { fail, ok } from "@/lib/api";
 import { DBJ_SAMPLE } from "@/lib/profile";
 
@@ -81,7 +81,7 @@ export async function POST(req: Request) {
   // 判定に失敗しても無応答にせず、障害時の案内を返す（再送は二重回答防止で破棄されるため）
   let result;
   try {
-    result = judgeVehicle(q, await loadMaster());
+    result = judgeVehicle(q, await loadMasterFor(q.modelCode));
     await logAnswer("line-demo", result);
   } catch (e) {
     console.error(e);
