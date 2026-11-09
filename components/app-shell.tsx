@@ -20,7 +20,7 @@ export function AppShell({ children, dbMode }: { children: React.ReactNode; dbMo
       </aside>
       {open && (
         <div className="fixed inset-0 z-50 lg:hidden" role="dialog" aria-modal="true" aria-label="メニュー">
-          <div className="absolute inset-0 bg-slate-900/40" onClick={() => setOpen(false)} />
+          <div className="absolute inset-0 bg-[#282a2c]/40" onClick={() => setOpen(false)} />
           <aside className="absolute inset-y-0 left-0 w-72 max-w-[85vw] bg-surface shadow-pop">
             <AppSidebar onNavigate={() => setOpen(false)} />
           </aside>

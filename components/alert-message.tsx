@@ -1,7 +1,7 @@
 import { AlertTriangle, CheckCircle2, Info, XCircle } from "lucide-react";
 
 const VARIANT = {
-  info: { cls: "border-[#bfdbfe] bg-action-soft", icon: Info, color: "text-action" },
+  info: { cls: "border-info-line bg-info-soft", icon: Info, color: "text-info" },
   success: { cls: "border-ok-line bg-ok-soft", icon: CheckCircle2, color: "text-ok" },
   warning: { cls: "border-warn-line bg-warn-soft", icon: AlertTriangle, color: "text-warn" },
   error: { cls: "border-bad-line bg-bad-soft", icon: XCircle, color: "text-bad" },

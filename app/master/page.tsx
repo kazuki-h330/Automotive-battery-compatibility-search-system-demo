@@ -37,10 +37,10 @@ export default async function MasterPage({ searchParams }: { searchParams: Promi
             key={t.id}
             href={`/master?tab=${t.id}`}
             aria-current={tab === t.id ? "page" : undefined}
-            className={`relative shrink-0 px-4 py-2.5 text-[13px] ${tab === t.id ? "font-bold text-navy" : "text-muted hover:text-ink"}`}
+            className={`relative shrink-0 px-4 py-2.5 text-[13px] ${tab === t.id ? "font-bold text-charcoal" : "text-muted hover:text-ink"}`}
           >
             {t.label}
-            {tab === t.id && <span className="absolute right-2 bottom-0 left-2 h-0.5 rounded bg-navy" aria-hidden />}
+            {tab === t.id && <span className="absolute right-2 bottom-0 left-2 h-0.5 rounded bg-charcoal" aria-hidden />}
           </Link>
         ))}
       </nav>
@@ -73,7 +73,7 @@ async function Versions() {
               </>
             ),
           },
-          { key: "ver", header: "公開中の版", render: ({ v }) => (v ? <span className="font-mono font-bold text-navy">v{v.version_no}</span> : "—") },
+          { key: "ver", header: "公開中の版", render: ({ v }) => (v ? <span className="font-mono font-bold text-charcoal">v{v.version_no}</span> : "—") },
           { key: "status", header: "状態", render: ({ v }) => (v ? <ApprovalStatusBadge status="published" /> : "—") },
           { key: "count", header: "件数", className: "tnum", render: ({ v }) => (v ? `${v.row_count} 件` : "—") },
           { key: "at", header: "最終更新日時", className: "tnum whitespace-nowrap", render: ({ v }) => fmtDate(v?.reviewed_at) },
@@ -107,7 +107,7 @@ async function Backup() {
         <SectionTitle>手動バックアップ</SectionTitle>
         <div className="space-y-3 px-5 py-4 text-[13px]">
           <p className="text-muted">全マスター・版履歴・設定を 1 つのファイルとして保存します。別業者への移行時もこのファイルとソースコードで引き継げます。</p>
-          <a href="/api/master/backup" className="btn-navy">
+          <a href="/api/master/backup" className="btn-charcoal">
             <Archive size={16} aria-hidden /> 全データをバックアップ（JSON）
           </a>
           <div className="border-t border-line pt-3">
@@ -123,7 +123,7 @@ async function Backup() {
         </div>
       </section>
       <section className="card">
-        <SectionTitle aside={<Link href="/settings?tab=backup" className="text-xs text-action hover:underline">設定を変更</Link>}>
+        <SectionTitle aside={<Link href="/settings?tab=backup" className="text-xs text-brand hover:underline">設定を変更</Link>}>
           自動バックアップ
         </SectionTitle>
         <dl className="grid grid-cols-[120px_1fr] gap-y-2 px-5 py-4 text-[13px]">
@@ -167,7 +167,7 @@ async function DataBrowser({ ds: dsParam, page, q }: { ds?: string; page: number
           <Link
             key={d.id}
             href={`/master?tab=data&ds=${d.id}`}
-            className={`rounded-full px-3 py-1 text-[13px] ${d.id === ds.id ? "bg-navy text-white" : "border border-line bg-surface text-ink/80 hover:border-navy"}`}
+            className={`rounded-full px-3 py-1 text-[13px] ${d.id === ds.id ? "bg-charcoal text-white" : "border border-line bg-surface text-ink/80 hover:border-charcoal"}`}
           >
             {d.label}
           </Link>

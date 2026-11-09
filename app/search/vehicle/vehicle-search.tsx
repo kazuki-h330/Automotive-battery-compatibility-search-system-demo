@@ -159,8 +159,8 @@ export function VehicleSearch({ makers, conditions, initialModel, initialReg }: 
               ).map(([v, l]) => (
                 <label
                   key={v}
-                  className={`flex h-9 cursor-pointer items-center justify-center border-r border-line last:border-r-0 has-focus-visible:outline-2 has-focus-visible:outline-action ${
-                    condMode === v ? "bg-navy-soft font-medium text-navy" : "bg-surface text-ink/80 hover:bg-canvas"
+                  className={`flex h-9 cursor-pointer items-center justify-center border-r border-line last:border-r-0 has-focus-visible:outline-2 has-focus-visible:outline-brand ${
+                    condMode === v ? "bg-charcoal-soft font-medium text-charcoal" : "bg-surface text-ink/80 hover:bg-canvas"
                   }`}
                 >
                   <input type="radio" name="cond" className="sr-only" checked={condMode === v} onChange={() => setCondMode(v)} />
@@ -174,7 +174,7 @@ export function VehicleSearch({ makers, conditions, initialModel, initialReg }: 
                   <label key={c} className="flex items-center gap-1.5 rounded-md border border-line px-2.5 py-1.5 text-[13px]">
                     <input
                       type="checkbox"
-                      className="h-4 w-4 accent-action"
+                      className="h-4 w-4 accent-brand"
                       checked={conds.includes(c)}
                       onChange={(e) => setConds(e.target.checked ? [...conds, c] : conds.filter((x) => x !== c))}
                     />
@@ -245,7 +245,7 @@ function CandidateList({ candidates }: { candidates: CandidateView[] }) {
                     .split("|")
                     .filter(Boolean)
                     .map((x) => (
-                      <Badge key={x} tone="navy">
+                      <Badge key={x} tone="charcoal">
                         {x}
                       </Badge>
                     ))}
@@ -309,7 +309,7 @@ function CandidateList({ candidates }: { candidates: CandidateView[] }) {
                           ) : (
                             b.mappings.map((m) => (
                               <div key={m.id} className="flex flex-wrap items-center gap-1.5">
-                                <span className="font-mono font-medium text-navy">{m.own_part_no}</span>
+                                <span className="font-mono font-medium text-charcoal">{m.own_part_no}</span>
                                 <ApprovalStatusBadge status={m.status} />
                                 <CustomerUseBadge allowed={m.customer_use && m.source_customer_use} />
                               </div>

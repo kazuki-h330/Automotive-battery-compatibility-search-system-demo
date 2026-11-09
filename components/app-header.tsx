@@ -50,7 +50,7 @@ export function AppHeader({ onMenu, dbMode }: { onMenu: () => void; dbMode: "neo
           aria-haspopup="menu"
           aria-expanded={open}
         >
-          <span className="flex h-8 w-8 items-center justify-center rounded-full bg-navy text-[12px] font-medium text-white" aria-hidden>
+          <span className="flex h-8 w-8 items-center justify-center rounded-full bg-charcoal text-[12px] font-medium text-white" aria-hidden>
             {actor.name.slice(0, 1)}
           </span>
           <span className="hidden text-left leading-tight sm:block">
@@ -68,7 +68,7 @@ export function AppHeader({ onMenu, dbMode }: { onMenu: () => void; dbMode: "neo
               <div className="text-sm font-medium">{actor.name}</div>
               <div className="text-xs text-muted">{actor.email}</div>
               <div className="mt-1 text-xs text-muted">
-                権限: <span className="font-medium text-navy">{ROLE_LABEL[actor.role]}</span>
+                権限: <span className="font-medium text-charcoal">{ROLE_LABEL[actor.role]}</span>
               </div>
             </div>
             <div className="px-2 py-2">
@@ -87,7 +87,7 @@ export function AppHeader({ onMenu, dbMode }: { onMenu: () => void; dbMode: "neo
                   <UserRound size={14} className="text-muted" aria-hidden />
                   <span className="flex-1">{a.name}</span>
                   <span className="text-[11px] text-muted">{ROLE_LABEL[a.role]}</span>
-                  {a.name === actor.name ? <Check size={14} className="text-action" aria-hidden /> : <span className="w-3.5" />}
+                  {a.name === actor.name ? <Check size={14} className="text-brand" aria-hidden /> : <span className="w-3.5" />}
                 </button>
               ))}
             </div>

@@ -70,13 +70,13 @@ export default async function Dashboard() {
         {ACTIONS.map((a) => {
           const Icon = a.icon;
           return (
-            <Link key={a.href} href={a.href} className="card group flex flex-col p-5 transition-colors hover:border-[#c7d3e3]">
-              <span className="mb-4 flex h-10 w-10 items-center justify-center rounded-lg bg-navy-soft text-navy">
+            <Link key={a.href} href={a.href} className="card group flex flex-col p-5 transition-colors hover:border-brand-line">
+              <span className="mb-4 flex h-10 w-10 items-center justify-center rounded-lg bg-charcoal-soft text-charcoal">
                 <Icon size={20} aria-hidden />
               </span>
               <span className="text-[15px] font-bold">{a.title}</span>
               <span className="mt-1 flex-1 text-[13px] text-muted">{a.desc}</span>
-              <span className="mt-4 inline-flex items-center gap-1 text-[13px] font-medium text-action">
+              <span className="mt-4 inline-flex items-center gap-1 text-[13px] font-medium text-brand">
                 開く <ArrowRight size={14} className="transition-transform group-hover:translate-x-0.5" aria-hidden />
               </span>
             </Link>
@@ -92,7 +92,7 @@ export default async function Dashboard() {
             rowKey={(x) => x.d.id}
             columns={[
               { key: "name", header: "マスター", render: ({ d }) => <span className="font-medium">{d.label}</span> },
-              { key: "ver", header: "承認版", render: ({ v }) => (v ? <span className="font-mono font-bold text-navy">v{v.version_no}</span> : "—") },
+              { key: "ver", header: "承認版", render: ({ v }) => (v ? <span className="font-mono font-bold text-charcoal">v{v.version_no}</span> : "—") },
               { key: "n", header: "件数", className: "tnum", render: ({ v }) => (v ? `${v.row_count}` : "—") },
               { key: "at", header: "最終更新日時", className: "tnum whitespace-nowrap text-xs", render: ({ v }) => fmtDate(v?.reviewed_at) },
             ]}
@@ -102,7 +102,7 @@ export default async function Dashboard() {
         <section className="card overflow-hidden">
           <SectionTitle
             aside={
-              <Link href="/history" className="text-xs text-action hover:underline">
+              <Link href="/history" className="text-xs text-brand hover:underline">
                 すべての履歴
               </Link>
             }
@@ -120,7 +120,7 @@ export default async function Dashboard() {
                 header: "マスター・版",
                 render: (v) => (
                   <div className="whitespace-nowrap">
-                    {getDataset(v.dataset)?.label} <span className="font-mono text-xs text-navy">v{v.version_no}</span>
+                    {getDataset(v.dataset)?.label} <span className="font-mono text-xs text-charcoal">v{v.version_no}</span>
                   </div>
                 ),
               },

@@ -47,7 +47,7 @@ export function BackupList({ initial }: { initial: Backup[] }) {
         empty="まだバックアップはありません（毎日 3:00 に自動で作成します）"
         columns={[
           { key: "at", header: "作成日時", className: "tnum whitespace-nowrap text-xs", render: (b) => fmtDate(b.at) },
-          { key: "kind", header: "種別", render: (b) => <Badge tone={b.trigger_type === "scheduled" ? "navy" : "neutral"}>{b.trigger_type === "scheduled" ? "自動" : "手動"}</Badge> },
+          { key: "kind", header: "種別", render: (b) => <Badge tone={b.trigger_type === "scheduled" ? "charcoal" : "neutral"}>{b.trigger_type === "scheduled" ? "自動" : "手動"}</Badge> },
           { key: "who", header: "実行者", className: "whitespace-nowrap", render: (b) => b.actor ?? "システム" },
           { key: "n", header: "件数", className: "tnum", render: (b) => `${b.row_count} 件` },
           {

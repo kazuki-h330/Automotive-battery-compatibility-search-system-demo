@@ -13,7 +13,7 @@ export function PageHeader({
     <div className="mb-6 flex flex-col gap-3 md:flex-row md:items-end md:justify-between">
       <div className="min-w-0">
         <div className="flex flex-wrap items-center gap-2">
-          <h1 className="text-[22px] leading-tight font-bold tracking-tight text-navy">{title}</h1>
+          <h1 className="text-[22px] leading-tight font-bold tracking-tight text-charcoal">{title}</h1>
           {badge}
         </div>
         {description && <p className="mt-1.5 max-w-3xl text-[13px] text-muted">{description}</p>}

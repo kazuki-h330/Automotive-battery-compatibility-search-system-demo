@@ -14,7 +14,7 @@ export function FutureHeader({ title, option, description, reuse }: { title: str
           </span>
         }
       />
-      <div className="mb-6 flex flex-col gap-1 rounded-card border border-dashed border-[#cbd5e1] bg-surface px-4 py-3 text-[13px] md:flex-row md:items-center md:gap-4">
+      <div className="mb-6 flex flex-col gap-1 rounded-card border border-dashed border-[#c9cbcd] bg-surface px-4 py-3 text-[13px] md:flex-row md:items-center md:gap-4">
         <span className="font-bold text-ink">将来拡張のプレビューです</span>
         <span className="text-muted">
           本番の社内業務では使用しません。{reuse}

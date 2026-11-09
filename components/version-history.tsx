@@ -157,8 +157,8 @@ export function VersionHistory({ initialDataset = "" }: { initialDataset?: strin
                 <div className="min-w-0 flex-1">
                   <div className="flex flex-wrap items-center gap-2 text-[13px]">
                     <span className="font-medium">{getDataset(v.dataset)?.label}</span>
-                    <span className="font-mono text-navy">v{v.version_no}</span>
-                    <Badge tone="navy">{modeLabel(v.mode)}</Badge>
+                    <span className="font-mono text-charcoal">v{v.version_no}</span>
+                    <Badge tone="charcoal">{modeLabel(v.mode)}</Badge>
                     {v.restored_from && <span className="text-xs text-muted">v{v.restored_from} から復元</span>}
                   </div>
                   <div className="mt-0.5 flex flex-wrap gap-x-3 text-xs text-muted">
@@ -228,7 +228,7 @@ export function VersionHistory({ initialDataset = "" }: { initialDataset?: strin
                 render: (v) => (
                   <div className="whitespace-nowrap">
                     <div className="text-[13px]">{getDataset(v.dataset)?.label}</div>
-                    <div className="font-mono text-xs font-bold text-navy">v{v.version_no}</div>
+                    <div className="font-mono text-xs font-bold text-charcoal">v{v.version_no}</div>
                   </div>
                 ),
               },
@@ -287,7 +287,7 @@ export function VersionHistory({ initialDataset = "" }: { initialDataset?: strin
                 </>
               )}
               {detail.status === "superseded" && (
-                <button className="btn-navy" disabled={!isApprover || busy} onClick={() => startRestore(detail)} title={!isApprover ? "復元は承認者のみ操作できます" : undefined}>
+                <button className="btn-charcoal" disabled={!isApprover || busy} onClick={() => startRestore(detail)} title={!isApprover ? "復元は承認者のみ操作できます" : undefined}>
                   <RotateCcw size={15} aria-hidden /> この版に復元…
                 </button>
               )}

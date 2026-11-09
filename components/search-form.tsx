@@ -92,7 +92,7 @@ export function ExampleChips<T>({ title, items, onPick }: { title: string; items
           <button
             key={e.label}
             type="button"
-            className="rounded-full border border-line bg-surface px-2.5 py-1 text-xs text-ink/80 hover:border-action hover:text-action"
+            className="rounded-full border border-line bg-surface px-2.5 py-1 text-xs text-ink/80 hover:border-brand hover:text-brand"
             onClick={() => onPick(e.q)}
           >
             {e.label}
