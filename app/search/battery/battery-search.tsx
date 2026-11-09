@@ -175,7 +175,7 @@ export function BatterySearch({ makers }: { makers: string[] }) {
                   columns={[
                     { key: "maker", header: "メーカー" },
                     { key: "part_no", header: "商品コード", render: (x) => <span className="font-mono font-medium">{x.part_no}</span> },
-                    { key: "category", header: "規格区分", render: (x) => <Badge tone="navy">{x.category}</Badge> },
+                    { key: "category", header: "規格区分", render: (x) => <Badge tone="charcoal">{x.category}</Badge> },
                     { key: "type", header: "電池種別", render: (x) => typeOf(x.category) },
                     { key: "spec", header: "規格表記", render: (x) => <span className="font-mono">{x.spec_code}</span> },
                     { key: "perf", header: "容量 / CCA", className: "tnum whitespace-nowrap", render: (x) => `${x.capacity_ah ?? "—"}Ah / ${x.cca ?? "—"}` },
@@ -218,7 +218,7 @@ function MatchedProducts({ rows }: { rows: (Row & { mappings: MappingView[]; sou
             header: "規格区分・規格表記",
             render: (x) => (
               <div className="whitespace-nowrap">
-                <Badge tone="navy">{x.category}</Badge> <span className="font-mono">{x.spec_code}</span>
+                <Badge tone="charcoal">{x.category}</Badge> <span className="font-mono">{x.spec_code}</span>
               </div>
             ),
           },
@@ -259,7 +259,7 @@ function MappingList({ ms }: { ms: MappingView[] }) {
       {ms.map((m) => (
         <div key={m.id}>
           <div className="flex flex-wrap items-center gap-1.5">
-            <span className="font-mono text-[13px] font-bold text-navy">{m.own_part_no}</span>
+            <span className="font-mono text-[13px] font-bold text-charcoal">{m.own_part_no}</span>
             <ApprovalStatusBadge status={m.status} />
             <CustomerUseBadge allowed={m.customer_use && m.source_customer_use} />
           </div>

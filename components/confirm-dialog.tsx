@@ -73,7 +73,7 @@ export function ConfirmDialog({
       <div className="flex flex-col-reverse gap-2 border-t border-line bg-canvas px-5 py-3 sm:flex-row sm:items-center sm:justify-end">
         {acknowledge && (
           <label className="mr-auto flex items-center gap-2 text-[13px]">
-            <input type="checkbox" className="h-4 w-4 accent-action" checked={ack} onChange={(e) => setAck(e.target.checked)} />
+            <input type="checkbox" className="h-4 w-4 accent-brand" checked={ack} onChange={(e) => setAck(e.target.checked)} />
             {acknowledge}
           </label>
         )}

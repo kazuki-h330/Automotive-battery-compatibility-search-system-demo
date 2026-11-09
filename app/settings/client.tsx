@@ -14,7 +14,7 @@ export function AccountInfo() {
       <section className="card">
         <SectionTitle>アカウント情報</SectionTitle>
         <div className="flex items-center gap-4 px-5 py-4">
-          <span className="flex h-14 w-14 items-center justify-center rounded-full bg-navy text-lg font-medium text-white" aria-hidden>
+          <span className="flex h-14 w-14 items-center justify-center rounded-full bg-charcoal text-lg font-medium text-white" aria-hidden>
             {actor.name.slice(0, 1)}
           </span>
           <div>
@@ -27,7 +27,7 @@ export function AccountInfo() {
           <dd>{actor.dept}</dd>
           <dt className="text-muted">権限</dt>
           <dd>
-            <Badge tone="navy">{ROLE_LABEL[actor.role]}</Badge>
+            <Badge tone="charcoal">{ROLE_LABEL[actor.role]}</Badge>
           </dd>
           <dt className="text-muted">ログイン方式</dt>
           <dd>次段階で実装予定（社内メールアドレスでのログインを想定）</dd>
@@ -40,14 +40,14 @@ export function AccountInfo() {
           {DEMO_ACTORS.map((a) => (
             <li key={a.name}>
               <label
-                className={`flex cursor-pointer items-center gap-3 rounded-lg border px-3 py-2.5 ${a.name === actor.name ? "border-action bg-action-soft/60" : "border-line hover:bg-canvas"}`}
+                className={`flex cursor-pointer items-center gap-3 rounded-lg border px-3 py-2.5 ${a.name === actor.name ? "border-brand bg-brand-soft/60" : "border-line hover:bg-canvas"}`}
               >
-                <input type="radio" name="actor" className="h-4 w-4 accent-action" checked={a.name === actor.name} onChange={() => setActor(a)} />
+                <input type="radio" name="actor" className="h-4 w-4 accent-brand" checked={a.name === actor.name} onChange={() => setActor(a)} />
                 <span className="flex-1 text-[13px]">
                   <span className="font-medium">{a.name}</span>
                   <span className="ml-2 text-muted">{a.dept}</span>
                 </span>
-                <Badge tone={a.role === "approver" ? "navy" : "neutral"}>{ROLE_LABEL[a.role]}</Badge>
+                <Badge tone={a.role === "approver" ? "charcoal" : "neutral"}>{ROLE_LABEL[a.role]}</Badge>
               </label>
             </li>
           ))}

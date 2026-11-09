@@ -1,24 +1,44 @@
 @import "tailwindcss";
 
-/* DBJ デザイントークン（Japanese Minimalism × Modern Enterprise SaaS） */
+/*
+ * DBJ デザイントークン — 「Discover ブランド使用ガイドライン 2026年7月版」準拠
+ *  - 白を基調、Discover Green と Charcoal を中心に構成（p.08）
+ *  - 緑は見出し・重要語・要点などのアクセントに限定し、画面全体を緑で埋めない
+ *  - 本文は Charcoal。黒は必要な場合に限定
+ *  - 英字: Univers が使えない環境では Arial／和文: Noto Sans JP（p.09）
+ */
 @theme {
-  --font-sans: var(--font-inter), var(--font-noto), "Hiragino Sans", "Yu Gothic UI", system-ui, sans-serif;
+  --font-sans: Arial, "Helvetica Neue", var(--font-noto), "Yu Gothic UI", "Hiragino Sans", sans-serif;
 
-  --color-canvas: #f8fafc;
+  --color-canvas: #f7f7f7;
   --color-surface: #ffffff;
-  --color-navy: #163b65;
-  --color-navy-soft: #edf2f8;
-  --color-action: #2563eb;
-  --color-action-hover: #1d4ed8;
-  --color-action-soft: #eff6ff;
-  --color-ink: #172b4d;
-  --color-muted: #64748b;
-  --color-subtle: #94a3b8;
-  --color-line: #e2e8f0;
-  --color-line-soft: #f1f5f9;
-  --color-ok: #16a34a;
-  --color-ok-soft: #f0fdf4;
-  --color-ok-line: #bbf7d0;
+
+  /* CHARCOAL — Pantone 425 / #54575A */
+  --color-charcoal: #54575a;
+  --color-charcoal-hover: #43464a;
+  --color-charcoal-soft: #f0f1f1;
+
+  /* DISCOVER GREEN — Pantone 362 / #4B9F45（線・インジケーター等の非テキスト用） */
+  --color-brand-accent: #4b9f45;
+  /* 白文字・緑文字で WCAG AA（4.5:1）を満たすための同系濃色。ボタン・リンク・強調テキスト用 */
+  --color-brand: #3a8535;
+  --color-brand-hover: #2f6e2b;
+  --color-brand-soft: #eef6ed;
+  --color-brand-line: #c5e1c2;
+
+  /* セカンダリー BLUE（#00ADD8）系 — 情報表示に限定使用。文字用に濃色化 */
+  --color-info: #00779f;
+  --color-info-soft: #e8f7fb;
+  --color-info-line: #b3e3f1;
+
+  --color-ink: #54575a;
+  --color-muted: #6b6e71;
+  --color-subtle: #9c9fa2;
+  --color-line: #e2e3e4;
+  --color-line-soft: #f1f2f2;
+  --color-ok: #3a8535;
+  --color-ok-soft: #eef6ed;
+  --color-ok-line: #c5e1c2;
   --color-warn: #d97706;
   --color-warn-ink: #b45309;
   --color-warn-soft: #fffbeb;
@@ -28,8 +48,8 @@
   --color-bad-line: #fecaca;
 
   --radius-card: 10px;
-  --shadow-card: 0 1px 2px rgb(15 23 42 / 0.04), 0 1px 3px rgb(15 23 42 / 0.03);
-  --shadow-pop: 0 8px 24px rgb(15 23 42 / 0.12), 0 2px 6px rgb(15 23 42 / 0.06);
+  --shadow-card: 0 1px 2px rgb(40 42 44 / 0.04), 0 1px 3px rgb(40 42 44 / 0.03);
+  --shadow-pop: 0 8px 24px rgb(40 42 44 / 0.12), 0 2px 6px rgb(40 42 44 / 0.06);
 }
 
 html {
@@ -42,7 +62,7 @@ body {
   line-height: 1.7;
 }
 :focus-visible {
-  outline: 2px solid var(--color-action);
+  outline: 2px solid var(--color-brand);
   outline-offset: 2px;
 }
 
@@ -50,13 +70,13 @@ body {
   @apply rounded-card border border-line bg-surface shadow-card;
 }
 @utility btn {
-  @apply inline-flex h-9 items-center justify-center gap-1.5 rounded-lg px-3.5 text-sm font-medium whitespace-nowrap transition-colors focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-action disabled:pointer-events-none disabled:opacity-45;
+  @apply inline-flex h-9 items-center justify-center gap-1.5 rounded-lg px-3.5 text-sm font-medium whitespace-nowrap transition-colors focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-brand disabled:pointer-events-none disabled:opacity-45;
 }
 @utility btn-primary {
-  @apply btn bg-action text-white hover:bg-action-hover;
+  @apply btn bg-brand text-white hover:bg-brand-hover;
 }
-@utility btn-navy {
-  @apply btn bg-navy text-white hover:bg-[#0f2d4f];
+@utility btn-charcoal {
+  @apply btn bg-charcoal text-white hover:bg-charcoal-hover;
 }
 @utility btn-secondary {
   @apply btn border border-line bg-surface text-ink hover:bg-canvas;
@@ -71,7 +91,7 @@ body {
   @apply h-8 rounded-md px-2.5 text-xs;
 }
 @utility field {
-  @apply h-9 w-full rounded-lg border border-line bg-surface px-3 text-sm text-ink placeholder:text-subtle transition-colors outline-none hover:border-[#cbd5e1] focus:border-action focus:ring-3 focus:ring-action/15 aria-invalid:border-warn aria-invalid:ring-3 aria-invalid:ring-warn/15;
+  @apply h-9 w-full rounded-lg border border-line bg-surface px-3 text-sm text-ink placeholder:text-subtle transition-colors outline-none hover:border-[#c9cbcd] focus:border-brand focus:ring-3 focus:ring-brand/15 aria-invalid:border-warn aria-invalid:ring-3 aria-invalid:ring-warn/15;
 }
 @utility field-label {
   @apply mb-1.5 flex items-center gap-1.5 text-[13px] font-medium text-ink;
@@ -85,18 +105,18 @@ body {
   @apply w-full border-separate border-spacing-0 text-[13px];
 }
 .dt th {
-  @apply sticky top-0 z-[1] border-b border-line bg-[#f8fafc] px-3 py-2 text-left text-xs font-medium whitespace-nowrap text-muted;
+  @apply sticky top-0 z-[1] border-b border-line bg-canvas px-3 py-2 text-left text-xs font-medium whitespace-nowrap text-muted;
 }
 .dt td {
   @apply border-b border-line-soft px-3 py-2.5 align-top;
 }
 .dt tbody tr:hover td {
-  @apply bg-[#fafbfd];
+  @apply bg-[#fafafa];
 }
 .dt tbody tr:last-child td {
   @apply border-b-0;
 }
 
 dialog::backdrop {
-  background: rgb(15 23 42 / 0.4);
+  background: rgb(40 42 44 / 0.4);
 }

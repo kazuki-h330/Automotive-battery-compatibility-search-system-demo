@@ -158,10 +158,10 @@ export default function LinePreview() {
             <div className="space-y-3 px-5 py-4">
               <div className="flex flex-wrap gap-4 text-[13px]">
                 <label className="flex items-center gap-1.5">
-                  <input type="checkbox" className="h-4 w-4 accent-action" checked={badSig} onChange={(e) => setBadSig(e.target.checked)} /> 不正な署名のリクエスト
+                  <input type="checkbox" className="h-4 w-4 accent-brand" checked={badSig} onChange={(e) => setBadSig(e.target.checked)} /> 不正な署名のリクエスト
                 </label>
                 <label className="flex items-center gap-1.5">
-                  <input type="checkbox" className="h-4 w-4 accent-action" checked={failure} onChange={(e) => setFailure(e.target.checked)} /> 障害の発生
+                  <input type="checkbox" className="h-4 w-4 accent-brand" checked={failure} onChange={(e) => setFailure(e.target.checked)} /> 障害の発生
                 </label>
               </div>
               <div className="flex flex-wrap gap-2">
@@ -218,7 +218,7 @@ export default function LinePreview() {
             <div className="space-y-3 px-5 py-4">
               {log.length === 0 && <p className="text-[13px] text-muted">メッセージを送ると、署名検証・二重回答防止・判定・引継ぎの流れを表示します。</p>}
               {log.map((e, i) => (
-                <div key={i} className="border-l-2 border-navy/40 pl-3 text-[13px]">
+                <div key={i} className="border-l-2 border-charcoal/40 pl-3 text-[13px]">
                   <Badge>{e.eventId}</Badge>
                   <ul className="mt-1 list-disc space-y-0.5 pl-5 text-ink/85">
                     {e.lines.map((x, j) => (

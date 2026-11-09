@@ -11,7 +11,7 @@ type Summary = { added: number; changed: number; deleted: number; unchanged?: nu
 export function DiffCounts({ s, compact = false }: { s: Summary; compact?: boolean }) {
   const items = [
     { label: "追加", n: s.added, cls: "text-ok" },
-    { label: "変更", n: s.changed, cls: "text-action" },
+    { label: "変更", n: s.changed, cls: "text-brand" },
     { label: "削除", n: s.deleted, cls: s.deleted ? "text-bad" : "text-ink" },
     ...(s.unchanged !== undefined ? [{ label: "変更なし", n: s.unchanged, cls: "text-muted" }] : []),
     { label: "反映後の件数", n: s.total, cls: "text-ink" },
@@ -61,7 +61,7 @@ export function DiffPreview({ diff, dataset, limit = 300, total }: { diff: DiffI
             role="tab"
             aria-selected={filter === f}
             onClick={() => setFilter(f)}
-            className={`rounded-md px-2.5 py-1 text-xs ${filter === f ? "bg-navy-soft font-medium text-navy" : "text-muted hover:bg-line-soft"}`}
+            className={`rounded-md px-2.5 py-1 text-xs ${filter === f ? "bg-charcoal-soft font-medium text-charcoal" : "text-muted hover:bg-line-soft"}`}
           >
             {f === "all" ? `すべて ${diff.length}` : `${OP[f].label} ${n(f)}`}
           </button>

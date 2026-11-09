@@ -55,7 +55,7 @@ export function SampleGuide({ cases = [] }: { cases?: CaseRow[] }) {
       <section className="card overflow-hidden">
         <SectionTitle
           aside={
-            <Link href="/master" className="text-xs text-action hover:underline">
+            <Link href="/master" className="text-xs text-brand hover:underline">
               CSV 取込を試す
             </Link>
           }
@@ -87,7 +87,7 @@ export function SampleGuide({ cases = [] }: { cases?: CaseRow[] }) {
                   <td className="text-right whitespace-nowrap">
                     <Link
                       href={`/search/vehicle?model=${encodeURIComponent(c.model)}${c.reg ? `&reg=${c.reg}` : ""}`}
-                      className="inline-flex items-center gap-1 text-[13px] font-medium text-action hover:underline"
+                      className="inline-flex items-center gap-1 text-[13px] font-medium text-brand hover:underline"
                     >
                       検索 <ArrowRight size={13} aria-hidden />
                     </Link>

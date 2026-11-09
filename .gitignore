@@ -6,3 +6,7 @@ node_modules
 next-env.d.ts
 .vercel
 /samples/
+
+# ブランド原本（関係者限り・無断転載禁止）— Web 用の書き出しは public/brand/ のみ管理
+/logo/
+/01_*.zip

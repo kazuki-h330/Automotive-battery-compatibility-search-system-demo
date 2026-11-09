@@ -34,7 +34,7 @@ export default async function SettingsPage({ searchParams }: { searchParams: Pro
               key={t.id}
               href={`/settings?tab=${t.id}`}
               aria-current={tab === t.id ? "page" : undefined}
-              className={`shrink-0 rounded-lg px-3 py-2 text-[13px] ${tab === t.id ? "bg-navy-soft font-medium text-navy" : "text-ink/80 hover:bg-line-soft"}`}
+              className={`shrink-0 rounded-lg px-3 py-2 text-[13px] ${tab === t.id ? "bg-charcoal-soft font-medium text-charcoal" : "text-ink/80 hover:bg-line-soft"}`}
             >
               {t.label}
             </Link>
@@ -105,7 +105,7 @@ function Roles() {
           columns={[
             { key: "name", header: "氏名", render: (u) => <span className="font-medium">{u.name}</span> },
             { key: "dept", header: "所属" },
-            { key: "role", header: "権限", render: (u) => <Badge tone={u.role === "承認者" ? "navy" : "neutral"}>{u.role}</Badge> },
+            { key: "role", header: "権限", render: (u) => <Badge tone={u.role === "承認者" ? "charcoal" : "neutral"}>{u.role}</Badge> },
           ]}
         />
       </section>
@@ -139,7 +139,7 @@ async function Logs({ which }: { which: "search" | "master" }) {
             <Link
               key={k}
               href={`/settings?tab=logs&log=${k}`}
-              className={`rounded-md px-2.5 py-1 text-xs ${which === k ? "bg-navy-soft font-medium text-navy" : "text-muted hover:bg-line-soft"}`}
+              className={`rounded-md px-2.5 py-1 text-xs ${which === k ? "bg-charcoal-soft font-medium text-charcoal" : "text-muted hover:bg-line-soft"}`}
             >
               {l}
             </Link>
@@ -229,7 +229,7 @@ async function SystemInfo() {
           rowKey={(v) => v.dataset}
           columns={[
             { key: "ds", header: "マスター", render: (v) => getDataset(v.dataset)?.label },
-            { key: "ver", header: "版", render: (v) => <span className="font-mono font-bold text-navy">v{v.version_no}</span> },
+            { key: "ver", header: "版", render: (v) => <span className="font-mono font-bold text-charcoal">v{v.version_no}</span> },
             { key: "n", header: "件数", className: "tnum", render: (v) => `${v.row_count} 件` },
             { key: "at", header: "反映日時", className: "tnum text-xs", render: (v) => fmtDate(v.reviewed_at) },
           ]}
@@ -245,10 +245,10 @@ async function SystemInfo() {
             { tag: "拡張 B", title: "車検証 OCR", body: "画像から技術項目のみを抽出し、利用者が確認・訂正してから判定へ渡す", done: false },
             { tag: "拡張 C", title: "自動返信", body: "承認済みかつ顧客回答可の結果だけを定型返信。一括停止に対応", done: false },
           ].map((p) => (
-            <div key={p.tag} className={`rounded-lg border p-3 ${p.done ? "border-navy/30 bg-navy-soft/50" : "border-line"}`}>
+            <div key={p.tag} className={`rounded-lg border p-3 ${p.done ? "border-charcoal/30 bg-charcoal-soft/50" : "border-line"}`}>
               <div className="flex items-center justify-between">
-                <Badge tone={p.done ? "navy" : "neutral"}>{p.tag}</Badge>
-                <span className={`text-[11px] ${p.done ? "text-navy" : "text-muted"}`}>{p.done ? "実装済み" : "未実装"}</span>
+                <Badge tone={p.done ? "charcoal" : "neutral"}>{p.tag}</Badge>
+                <span className={`text-[11px] ${p.done ? "text-charcoal" : "text-muted"}`}>{p.done ? "実装済み" : "未実装"}</span>
               </div>
               <div className="mt-2 text-[13px] font-bold">{p.title}</div>
               <p className="mt-1 text-xs text-muted">{p.body}</p>

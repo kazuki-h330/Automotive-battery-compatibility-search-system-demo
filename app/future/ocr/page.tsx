@@ -63,7 +63,7 @@ export default function OcrPreview() {
             <button className="btn-secondary" onClick={() => extract("blurry")} disabled={busy}>
               <ScanText size={16} aria-hidden /> サンプル（不鮮明な画像）
             </button>
-            <label className="btn-secondary cursor-pointer has-focus-visible:outline-2 has-focus-visible:outline-action">
+            <label className="btn-secondary cursor-pointer has-focus-visible:outline-2 has-focus-visible:outline-brand">
               <ImageUp size={16} aria-hidden /> 画像を選択
               <input type="file" accept="image/*" className="sr-only" onChange={(e) => e.target.files?.[0] && extract(undefined, e.target.files[0])} />
             </label>
@@ -107,7 +107,7 @@ export default function OcrPreview() {
                           {f.note && <div className="mt-1 text-xs text-muted">{f.note}</div>}
                           {low(f) && (
                             <label className="mt-1 flex items-center gap-1.5 text-xs font-medium text-warn-ink">
-                              <input type="checkbox" className="h-3.5 w-3.5 accent-action" checked={!!checked[f.key]} onChange={(e) => setChecked({ ...checked, [f.key]: e.target.checked })} />
+                              <input type="checkbox" className="h-3.5 w-3.5 accent-brand" checked={!!checked[f.key]} onChange={(e) => setChecked({ ...checked, [f.key]: e.target.checked })} />
                               車検証を見て確認・訂正しました
                             </label>
                           )}
@@ -118,7 +118,7 @@ export default function OcrPreview() {
                           </div>
                           <div className="mt-0.5 text-xs text-muted tnum">{Math.round(f.confidence * 100)}%</div>
                         </td>
-                        <td>{f.matchable ? <Badge tone="navy">使用する</Badge> : <Badge>使用しない</Badge>}</td>
+                        <td>{f.matchable ? <Badge tone="charcoal">使用する</Badge> : <Badge>使用しない</Badge>}</td>
                       </tr>
                     ))}
                   </tbody>

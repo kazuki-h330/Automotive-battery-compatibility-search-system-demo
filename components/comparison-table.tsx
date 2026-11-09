@@ -23,7 +23,7 @@ export type CompareRow = {
   sources: string[];
 };
 
-const TYPE_TONE = { 通常: "neutral", EFB: "info", AGM: "navy" } as const;
+const TYPE_TONE = { 通常: "neutral", EFB: "info", AGM: "charcoal" } as const;
 
 export function ComparisonTable({ rows, makers, categories }: { rows: CompareRow[]; makers: string[]; categories: string[] }) {
   const [tab, setTab] = useState(categories[0]);
@@ -85,7 +85,7 @@ export function ComparisonTable({ rows, makers, categories }: { rows: CompareRow
                 located.map(({ r, hit }) => (
                   <div key={r.key} className="flex flex-wrap items-center gap-1.5">
                     <span className="text-muted">{hit!.maker}</span>
-                    <span className="font-mono font-medium">{hit!.part_no}</span>→<Badge tone="navy">{r.category}</Badge>
+                    <span className="font-mono font-medium">{hit!.part_no}</span>→<Badge tone="charcoal">{r.category}</Badge>
                     <span className="font-mono">{r.spec_code}</span>
                     <span className="text-muted">（サイズ {r.size_group}・{r.battery_type}）</span>
                   </div>
@@ -104,12 +104,12 @@ export function ComparisonTable({ rows, makers, categories }: { rows: CompareRow
               aria-selected={tab === c}
               onClick={() => setTab(c)}
               className={`relative flex h-11 shrink-0 items-center gap-1.5 px-4 text-[13px] ${
-                tab === c ? "font-bold text-navy" : "text-muted hover:text-ink"
+                tab === c ? "font-bold text-charcoal" : "text-muted hover:text-ink"
               }`}
             >
               {c}
-              <span className={`rounded-full px-1.5 text-[11px] tnum ${tab === c ? "bg-navy-soft text-navy" : "bg-line-soft text-muted"}`}>{count(c)}</span>
-              {tab === c && <span className="absolute right-3 bottom-0 left-3 h-0.5 rounded bg-navy" aria-hidden />}
+              <span className={`rounded-full px-1.5 text-[11px] tnum ${tab === c ? "bg-charcoal-soft text-charcoal" : "bg-line-soft text-muted"}`}>{count(c)}</span>
+              {tab === c && <span className="absolute right-3 bottom-0 left-3 h-0.5 rounded bg-charcoal" aria-hidden />}
             </button>
           ))}
         </div>
@@ -131,7 +131,7 @@ export function ComparisonTable({ rows, makers, categories }: { rows: CompareRow
                   {makers.map((m) => (
                     <th key={m}>{m}</th>
                   ))}
-                  <th className="bg-navy-soft! text-navy!">DBJ 自社品番</th>
+                  <th className="bg-charcoal-soft! text-charcoal!">DBJ 自社品番</th>
                   <th>確認状態</th>
                   <th>注意事項・出典</th>
                 </tr>
@@ -199,11 +199,11 @@ export function ComparisonTable({ rows, makers, categories }: { rows: CompareRow
                           )}
                         </td>
                       ))}
-                      <td className={`min-w-[150px] bg-navy-soft/40 ${rowBg}`}>
+                      <td className={`min-w-[150px] bg-charcoal-soft/40 ${rowBg}`}>
                         {r.own.length ? (
                           r.own.map((o) => (
                             <div key={o.part_no}>
-                              <div className="font-mono text-[13px] font-bold whitespace-nowrap text-navy">{o.part_no}</div>
+                              <div className="font-mono text-[13px] font-bold whitespace-nowrap text-charcoal">{o.part_no}</div>
                               <div className="text-[11px] text-muted">
                                 {o.direction}
                                 {o.conditions ? `・${o.conditions}` : ""}

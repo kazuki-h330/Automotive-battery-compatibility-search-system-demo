@@ -5,8 +5,8 @@ const TONES = {
   success: "bg-ok-soft text-ok ring-ok-line",
   warning: "bg-warn-soft text-warn-ink ring-warn-line",
   error: "bg-bad-soft text-bad ring-bad-line",
-  info: "bg-action-soft text-action ring-[#bfdbfe]",
-  navy: "bg-navy-soft text-navy ring-[#cfdbea]",
+  info: "bg-info-soft text-info ring-info-line",
+  charcoal: "bg-charcoal-soft text-charcoal ring-[#d9dadb]",
   neutral: "bg-line-soft text-muted ring-line",
 };
 export type Tone = keyof typeof TONES;

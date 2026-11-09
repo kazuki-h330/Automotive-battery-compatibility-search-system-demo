@@ -64,7 +64,7 @@ export function ResultCard({
         <div className="min-w-0 flex-1">
           <div className="flex flex-wrap items-center gap-2">
             <span className={`text-[13px] font-bold ${ICON_COLOR[r.state]}`}>{meta.label}</span>
-            <Badge tone="navy">{kindLabel}</Badge>
+            <Badge tone="charcoal">{kindLabel}</Badge>
           </div>
           <div className="mt-0.5 text-base font-bold text-ink">{r.headline}</div>
         </div>
@@ -103,7 +103,7 @@ export function ResultCard({
         <ul className="space-y-1 border-t border-line px-5 py-3">
           {r.hints.map((h, i) => (
             <li key={i} className="flex gap-2 text-[13px] text-ink/85">
-              <Info size={15} className="mt-0.5 shrink-0 text-action" aria-hidden />
+              <Info size={15} className="mt-0.5 shrink-0 text-brand" aria-hidden />
               {h}
             </li>
           ))}
@@ -121,7 +121,7 @@ export function ResultCard({
                     {p.role}
                     {p.qty > 1 ? `・${p.qty}個 同時搭載` : ""}
                   </div>
-                  <div className="text-lg font-bold tracking-wide text-navy tnum">{p.part_no}</div>
+                  <div className="text-lg font-bold tracking-wide text-charcoal tnum">{p.part_no}</div>
                   {p.name && <div className="text-xs text-muted">{p.name}</div>}
                 </div>
               ))}
@@ -182,9 +182,9 @@ function CaseRecords({ cases }: { cases: NonNullable<JudgeResult["cases"]> }) {
         {cases.map((c) => (
           <div key={c.id} className="rounded-lg border border-line px-4 py-3">
             <div className="flex flex-wrap items-center gap-2">
-              <span className="font-mono text-xs font-bold text-navy">{c.case_id}</span>
+              <span className="font-mono text-xs font-bold text-charcoal">{c.case_id}</span>
               <Badge tone={c.status === "実車確認済み" ? "success" : "neutral"}>{c.status}</Badge>
-              <Badge tone={c.customer_use === true || c.customer_use === "true" ? "navy" : "neutral"}>
+              <Badge tone={c.customer_use === true || c.customer_use === "true" ? "charcoal" : "neutral"}>
                 {c.customer_use === true || c.customer_use === "true" ? "この車両への回答は承認済み" : "回答不可"}
               </Badge>
             </div>
@@ -199,7 +199,7 @@ function CaseRecords({ cases }: { cases: NonNullable<JudgeResult["cases"]> }) {
             {c.scope_note && <p className="mt-2 text-xs leading-6 text-ink/80"><span className="font-medium">仕様・範囲：</span>{c.scope_note}</p>}
             {c.source_note && (
               <details className="mt-1 text-xs leading-6 text-ink/80">
-                <summary className="cursor-pointer text-action">出典・根拠を表示</summary>
+                <summary className="cursor-pointer text-brand">出典・根拠を表示</summary>
                 {c.source_note}
               </details>
             )}
@@ -214,7 +214,7 @@ function Item({ label, value, strong }: { label: string; value?: string | null; 
   return (
     <div className="flex gap-2">
       <dt className="shrink-0 text-muted">{label}</dt>
-      <dd className={strong ? "font-bold text-navy" : ""}>{value || "—"}</dd>
+      <dd className={strong ? "font-bold text-charcoal" : ""}>{value || "—"}</dd>
     </div>
   );
 }
@@ -223,14 +223,14 @@ export function ModeNotice({ kind }: { kind: "vehicle" | "battery" }) {
   return kind === "vehicle" ? (
     <p className="flex flex-wrap items-center gap-1 text-xs text-muted">
       この画面は<strong className="font-medium text-ink">車両への適合確認</strong>です。現物バッテリーからの置換は
-      <Link href="/search/battery" className="inline-flex items-center text-action hover:underline">
+      <Link href="/search/battery" className="inline-flex items-center text-brand hover:underline">
         バッテリー品番検索 <ArrowRight size={12} aria-hidden />
       </Link>
     </p>
   ) : (
     <p className="flex flex-wrap items-center gap-1 text-xs text-muted">
       この画面は<strong className="font-medium text-ink">現物バッテリーの品番置換</strong>です。車両への適合確認は
-      <Link href="/search/vehicle" className="inline-flex items-center text-action hover:underline">
+      <Link href="/search/vehicle" className="inline-flex items-center text-brand hover:underline">
         車両から検索 <ArrowRight size={12} aria-hidden />
       </Link>
     </p>

@@ -60,13 +60,13 @@ function Stepper({ current }: { current: number }) {
           <li key={s} className="flex shrink-0 items-center gap-1" aria-current={active ? "step" : undefined}>
             <span
               className={`flex h-6 w-6 items-center justify-center rounded-full text-[11px] font-bold tnum ${
-                done ? "bg-navy text-white" : active ? "bg-action text-white ring-4 ring-action/15" : "bg-line-soft text-muted"
+                done ? "bg-charcoal text-white" : active ? "bg-brand text-white ring-4 ring-brand/15" : "bg-line-soft text-muted"
               }`}
             >
               {done ? <Check size={13} aria-hidden /> : n}
             </span>
-            <span className={`text-[13px] ${active ? "font-bold text-ink" : done ? "text-navy" : "text-muted"}`}>{s}</span>
-            {n < STEPS.length && <span className={`mx-2 h-px w-6 md:w-10 ${done ? "bg-navy" : "bg-line"}`} aria-hidden />}
+            <span className={`text-[13px] ${active ? "font-bold text-ink" : done ? "text-charcoal" : "text-muted"}`}>{s}</span>
+            {n < STEPS.length && <span className={`mx-2 h-px w-6 md:w-10 ${done ? "bg-charcoal" : "bg-line"}`} aria-hidden />}
           </li>
         );
       })}
@@ -234,9 +234,9 @@ export function CSVUploadPanel() {
                   ).map(([v, l, d]) => (
                     <label
                       key={v}
-                      className={`flex cursor-pointer gap-2.5 rounded-lg border px-3 py-2.5 ${mode === v ? "border-action bg-action-soft/60" : "border-line hover:bg-canvas"}`}
+                      className={`flex cursor-pointer gap-2.5 rounded-lg border px-3 py-2.5 ${mode === v ? "border-brand bg-brand-soft/60" : "border-line hover:bg-canvas"}`}
                     >
-                      <input type="radio" name="mode" className="mt-1 h-4 w-4 accent-action" checked={mode === v} onChange={() => (setMode(v), setResult(null))} />
+                      <input type="radio" name="mode" className="mt-1 h-4 w-4 accent-brand" checked={mode === v} onChange={() => (setMode(v), setResult(null))} />
                       <span>
                         <span className="block text-[13px] font-medium">{l}</span>
                         <span className="block text-xs text-muted">{d}</span>
@@ -256,8 +256,8 @@ export function CSVUploadPanel() {
                     const f = e.dataTransfer.files[0];
                     if (f && !pending) loadFile(f);
                   }}
-                  className={`flex cursor-pointer flex-col items-center justify-center gap-1 rounded-lg border border-dashed px-4 py-6 text-center has-focus-visible:outline-2 has-focus-visible:outline-action ${
-                    dragging ? "border-action bg-action-soft" : "border-[#cbd5e1] bg-canvas hover:border-action"
+                  className={`flex cursor-pointer flex-col items-center justify-center gap-1 rounded-lg border border-dashed px-4 py-6 text-center has-focus-visible:outline-2 has-focus-visible:outline-brand ${
+                    dragging ? "border-brand bg-brand-soft" : "border-[#c9cbcd] bg-canvas hover:border-brand"
                   }`}
                 >
                   <Upload size={20} className="text-muted" aria-hidden />
@@ -270,7 +270,7 @@ export function CSVUploadPanel() {
                       if (f) loadFile(f);
                     }} disabled={!!pending} />
                 </label>
-                <a href={`/api/master/export?dataset=${dataset}`} className="mt-2 inline-flex items-center gap-1 text-xs text-action hover:underline">
+                <a href={`/api/master/export?dataset=${dataset}`} className="mt-2 inline-flex items-center gap-1 text-xs text-brand hover:underline">
                   <Download size={12} aria-hidden /> 現在の公開データを定型 CSV で取得（編集用ひな形）
                 </a>
               </div>
@@ -303,7 +303,7 @@ export function CSVUploadPanel() {
               ) : (
                 <>
                   ①〜⑤を順番に「検証 → 申請 → 別の承認者で承認」すると、
-                  <Link href="/search/vehicle?model=TEST-A100" className="text-action hover:underline">TEST-A100</Link> などで検索できます。
+                  <Link href="/search/vehicle?model=TEST-A100" className="text-brand hover:underline">TEST-A100</Link> などで検索できます。
                 </>
               )}
             </p>
@@ -383,7 +383,7 @@ export function CSVUploadPanel() {
                     <ol className="divide-y divide-line-soft rounded-lg border border-line">
                       {FLAT_ORDER.filter((id) => flat.result.csv[id]).map((id, i) => (
                         <li key={id} className="flex items-center gap-3 px-3 py-2">
-                          <span className="w-5 text-center font-bold text-navy tnum">{i + 1}</span>
+                          <span className="w-5 text-center font-bold text-charcoal tnum">{i + 1}</span>
                           <span className="min-w-0 flex-1">
                             {getDataset(id)!.label} <span className="text-xs text-muted tnum">{flat.result.counts[id]} 件</span>
                           </span>
@@ -500,7 +500,7 @@ export function CSVUploadPanel() {
                     </label>
                   )}
                   <div className="flex flex-wrap items-center gap-3">
-                    <button className="btn-navy" onClick={submit} disabled={!canSubmit || busy}>
+                    <button className="btn-charcoal" onClick={submit} disabled={!canSubmit || busy}>
                       承認を申請する
                     </button>
                     <span className="text-xs text-muted">
