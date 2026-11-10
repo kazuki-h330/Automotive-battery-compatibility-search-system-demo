@@ -7,11 +7,11 @@ import { convertFlat } from "../lib/flat.ts";
 
 const [input, outDir] = process.argv.slice(2);
 if (!input || !outDir) {
-  console.error("使い方: node scripts/convert-flat.mjs <入力CSV> <出力フォルダ> [--basis 初度登録]");
+  console.error("使い方: node scripts/convert-flat.mjs <入力CSV> <出力フォルダ> [--basis 初度登録] [--test]");
   process.exit(1);
 }
 const basisArg = process.argv.indexOf("--basis");
-const r = convertFlat(readFileSync(input, "utf8"), { basis: basisArg > 0 ? process.argv[basisArg + 1] : undefined });
+const r = convertFlat(readFileSync(input, "utf8"), { basis: basisArg > 0 ? process.argv[basisArg + 1] : undefined, testOnly: process.argv.includes("--test") });
 
 mkdirSync(outDir, { recursive: true });
 for (const [name, csv] of Object.entries(r.csv)) writeFileSync(path.join(outDir, `${name}.csv`), csv);

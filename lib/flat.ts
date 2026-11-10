@@ -15,8 +15,20 @@ import { parseSpec } from "./normalize.ts";
 export const FLAT_COLUMNS = ["id", "vehicle_maker", "model_code", "model_year", "engine_code", "battery_type_spec", "required_battery_code", "dbj_product_code", "status", "Source_note", "customer_reply_allowed"];
 /** 19 列形式で追加された列 */
 export const FLAT19_COLUMNS = ["car_name", "spec_note", "battery_position", "quantity", "approved_by", "approved_at", "type_specification_no", "classification_no"];
-/** 任意列：明示する場合は「汎用」または「実車確認」 */
+/** DBJ 様の正式な列順（2026-11 ご回答④）。全 19 列を固定順・文字列として扱う */
+export const OFFICIAL_19 = ["id", "vehicle_maker", "car_name", "model_code", "model_year", "engine_code", "spec_note", "battery_type_spec", "battery_position", "quantity", "required_battery_code", "dbj_product_code", "status", "customer_reply_allowed", "Source_note", "approved_by", "approved_at", "type_specification_no", "classification_no"];
+/**
+ * 拡張列（任意・19 列の後ろに追加）。ご回答①の識別フラグ
+ *   is_single_vehicle_case: TRUE = 実車 1 台限定の確認記録
+ *   is_general_fitment    : TRUE = 汎用適合として利用可能（自動回答には別途 確認済み・回答可・承認者 が必須）
+ * 空欄の場合は従来どおり備考（管理ID・「1 台限定」等）から判定する。
+ */
+export const FLAG_SINGLE = "is_single_vehicle_case";
+export const FLAG_GENERAL = "is_general_fitment";
+/** 旧仕様の任意列（互換のため残す）：「汎用」または「実車確認」 */
 export const SCOPE_COLUMN = "record_scope";
+/** テスト取込で使う ID 接頭辞・出典。承認済みデータと混ざらないよう別の名前空間に入れる */
+export const TEST_SOURCE = "SRC-DBJ-TEST";
 
 /** 取込順（参照先が先） */
 export const FLAT_ORDER: DatasetId[] = ["sources", "own_products", "vehicles", "vehicle_batteries", "own_mappings", "vehicle_cases"];
@@ -24,6 +36,10 @@ export const FLAT_ORDER: DatasetId[] = ["sources", "own_products", "vehicles", "
 export type FlatResult = {
   ok: boolean;
   format: "legacy" | "19";
+  /** テスト用として取り込む（顧客回答には一切使わない） */
+  testOnly: boolean;
+  /** 識別フラグ列があるか */
+  hasFlags: boolean;
   rowCount: number;
   errors: string[];
   warnings: string[];
@@ -71,9 +87,10 @@ export function isFlatCsv(text: string) {
   return FLAT_COLUMNS.every((c) => headers.includes(c));
 }
 
-export function convertFlat(text: string, opts: { basis?: string; today?: string } = {}): FlatResult {
+export function convertFlat(text: string, opts: { basis?: string; today?: string; testOnly?: boolean } = {}): FlatResult {
   const BASIS = opts.basis ?? "初度登録";
   const TODAY = opts.today ?? new Date().toISOString().slice(0, 10);
+  const TEST = !!opts.testOnly;
   const { data: rows, meta, errors: parseErrors } = Papa.parse<Rec>(clean(text), { header: true, skipEmptyLines: "greedy", delimiter: "," });
   const fields = (meta.fields ?? []).map((f) => f.trim());
 
@@ -82,18 +99,42 @@ export function convertFlat(text: string, opts: { basis?: string; today?: string
   const notes: string[] = [];
   const has19 = FLAT19_COLUMNS.filter((c) => fields.includes(c));
   const format: FlatResult["format"] = has19.length ? "19" : "legacy";
-  const empty = { ok: false, format, rowCount: rows.length, warnings, notes, csv: {}, counts: {} };
+  const hasFlags = fields.includes(FLAG_SINGLE) || fields.includes(FLAG_GENERAL);
+  const empty = { ok: false, format, testOnly: TEST, hasFlags, rowCount: rows.length, warnings, notes, csv: {}, counts: {} };
 
   const absent = FLAT_COLUMNS.filter((c) => !fields.includes(c));
   if (absent.length) return { ...empty, errors: [`必須列がありません: ${absent.join(", ")}`] };
   if (format === "19" && has19.length < FLAT19_COLUMNS.length)
     return { ...empty, errors: [`19 列形式の列が不足しています: ${FLAT19_COLUMNS.filter((c) => !fields.includes(c)).join(", ")}`] };
-  const known = new Set([...FLAT_COLUMNS, ...FLAT19_COLUMNS, SCOPE_COLUMN, "reply_template"]);
+  const known = new Set([...FLAT_COLUMNS, ...FLAT19_COLUMNS, FLAG_SINGLE, FLAG_GENERAL, SCOPE_COLUMN, "reply_template"]);
   const unknown = fields.filter((f) => !known.has(f));
   if (unknown.length) warnings.push(`未定義の列は取り込みません: ${unknown.join(", ")}`);
+  if (format === "19") {
+    // 正式な列順（固定）との比較。列名で読み込むため取込は可能だが、ずれは知らせる
+    const core = fields.filter((f) => OFFICIAL_19.includes(f));
+    if (core.join(",") !== OFFICIAL_19.join(",")) warnings.push(`19 列の並びが正式な列順と異なります（列名で読み込むため取込は可能です）。正式な順: ${OFFICIAL_19.join(", ")}`);
+    const firstExt = fields.findIndex((f) => !OFFICIAL_19.includes(f));
+    const lastCore = Math.max(...OFFICIAL_19.map((c) => fields.indexOf(c)));
+    if (firstExt >= 0 && firstExt < lastCore) warnings.push("拡張列（is_single_vehicle_case など）は 19 列の後ろに置いてください（列名で読み込むため取込は可能です）");
+  }
+  if (!/\r\n/.test(text.slice(0, 2000)) && /\n/.test(text)) notes.push("改行コードが LF でした（CRLF が基本ですが、どちらでも取り込めます）");
 
   const singleMonth: unknown[] = [];
+  const replyBlank: string[] = [];
+  const replyLoose: string[] = [];
+  const dateLoose: string[] = [];
+  const flagBlank: string[] = [];
   const at = (r: Rec) => `ID ${str(r.id) || "?"}（${str(r.vehicle_maker)} ${str(r.model_code)}）`;
+
+  /** 識別フラグ：TRUE / FALSE / 空欄（未指定） */
+  function flag(r: Rec, col: string): boolean | null {
+    const s = str(r[col]).normalize("NFKC");
+    if (!s) return null;
+    if (/^true$/i.test(s)) return true;
+    if (/^false$/i.test(s)) return false;
+    errors.push(`${at(r)}: ${col}「${s}」は TRUE / FALSE（不明な場合は空欄）で入力してください`);
+    return null;
+  }
 
   /** 年式表記 → 期間。単月表記は「その月のみ」として扱い、範囲を推測しない */
   function period(raw: unknown, r: Rec): { from: string | null; to: string | null } {
@@ -139,9 +180,10 @@ export function convertFlat(text: string, opts: { basis?: string; today?: string
     if (!s) return null;
     const m = s.match(/^(\d{4})[-/](\d{1,2})[-/](\d{1,2})$/);
     if (!m) {
-      errors.push(`${at(r)}: approved_at「${s}」は日付（例: 2026-11-07）で入力してください`);
+      errors.push(`${at(r)}: approved_at「${s}」は日付（YYYY-MM-DD、例: 2026-11-07）で入力してください`);
       return s;
     }
+    if (!/^\d{4}-\d{2}-\d{2}$/.test(s)) dateLoose.push(str(r.id));
     return `${m[1]}-${m[2].padStart(2, "0")}-${m[3].padStart(2, "0")}`;
   }
 
@@ -152,6 +194,9 @@ export function convertFlat(text: string, opts: { basis?: string; today?: string
   const sources = [
     { id: SRC_OK, name: `${srcName}（顧客回答可）`, kind: "DBJ確認", usage_condition: "顧客回答に利用可", internal_only: false, customer_use: true, note: "customer_reply_allowed = TRUE の行" },
     { id: SRC_NG, name: `${srcName}（顧客回答不可）`, kind: "DBJ確認", usage_condition: "社内確認用。顧客回答不可", internal_only: true, customer_use: false, note: "customer_reply_allowed = FALSE の行" },
+  ];
+  const testSources = [
+    { id: TEST_SOURCE, name: "汎用適合データ取り込みテスト用（顧客回答不可）", kind: "DBJ確認", usage_condition: "形式・検索・表示の検証専用。適合内容の承認・顧客回答には使わない", internal_only: true, customer_use: false, note: "テスト取込の行（ID は TV / TB で始まる）。本番データの取込前に削除する" },
   ];
 
   const vehicles = new Map<string, Rec>();
@@ -174,7 +219,10 @@ export function convertFlat(text: string, opts: { basis?: string; today?: string
     if (!status) errors.push(`${at(r)}: status「${r.status ?? ""}」は未定義です（確認済み / 条件不足 / 未登録）`);
     const replyRaw = str(r.customer_reply_allowed);
     if (!TRUE_RE.test(replyRaw) && !FALSE_RE.test(replyRaw)) errors.push(`${at(r)}: customer_reply_allowed「${replyRaw}」は TRUE / FALSE で入力してください`);
-    const reply = TRUE_RE.test(replyRaw);
+    else if (format === "19" && !replyRaw) replyBlank.push(rid);
+    else if (format === "19" && !/^(true|false)$/i.test(replyRaw)) replyLoose.push(`${rid}「${replyRaw}」`);
+    // テスト取込では、元データが確認済み・回答可でも顧客回答には使わない（ご回答⑤）
+    let reply = TRUE_RE.test(replyRaw) && !TEST;
     const code = str(r.dbj_product_code);
     const specNote = format === "19" ? str(r.spec_note) : "";
     const carName = (format === "19" ? str(r.car_name) : "") || str(r.vehicle_maker);
@@ -197,6 +245,22 @@ export function convertFlat(text: string, opts: { basis?: string; today?: string
     const caseId = text.normalize("NFKC").match(CASE_ID_RE)?.[0];
     const caseText = !!caseId || CASE_TEXT_RE.test(text.normalize("NFKC"));
     let isCase = caseText;
+    /** 汎用適合として使わない行（両フラグ FALSE 等）。マスターには社内参考として入れ、回答は止める */
+    let internalOnly = false;
+    const fSingle = hasFlags ? flag(r, FLAG_SINGLE) : null;
+    const fGeneral = hasFlags ? flag(r, FLAG_GENERAL) : null;
+    if (fSingle === true && fGeneral === true) errors.push(`${at(r)}: ${FLAG_SINGLE} と ${FLAG_GENERAL} が両方 TRUE です。どちらか一方にしてください`);
+    else if (fSingle === true) isCase = true;
+    else if (fGeneral === true || fSingle === false) {
+      if (caseText) errors.push(`${at(r)}: ${fGeneral === true ? `${FLAG_GENERAL} = TRUE` : `${FLAG_SINGLE} = FALSE`} ですが、備考に実車 1 台限定・汎用取込禁止の記載（または管理ID）があります。フラグか備考のどちらかを修正してください`);
+      isCase = false;
+      if (fGeneral === false) internalOnly = true;
+    } else if (fGeneral === false) {
+      // 汎用ではないが実車 1 台限定とも書かれていない → 備考で判定。どちらでもなければ社内参考
+      if (!caseText) internalOnly = true;
+    } else if (hasFlags) flagBlank.push(rid);
+    if (internalOnly) reply = false;
+    if (internalOnly) warnings.push(`${at(r)}: ${FLAG_GENERAL} = FALSE のため、汎用適合としては使わず社内参考として登録します（顧客回答には使いません）`);
     if (scopeIn) {
       if (/^(実車確認|個別|case)$/i.test(scopeIn)) isCase = true;
       else if (/^(汎用|general)$/i.test(scopeIn)) {
@@ -228,9 +292,15 @@ export function convertFlat(text: string, opts: { basis?: string; today?: string
     }
 
     if (isCase) {
+      // テスト取込では、承認済みの実車確認記録と混ざらないよう取り込まない（ご回答⑤：分離して管理）
+      if (TEST) {
+        warnings.push(`${at(r)}: 実車確認記録の行です。テスト取込では、承認済みの実車確認記録と分けるため取り込みません`);
+        continue;
+      }
       // ---- 実車確認記録：汎用マスターへは入れない ----
-      const id = caseId ?? (scopeIn ? `DBJ-ROW-${rid}` : undefined);
-      if (!caseId) errors.push(`${at(r)}: 実車確認記録ですが、備考に管理ID（DBJ-CASE-…）がありません`);
+      const id = caseId ?? (scopeIn || fSingle ? `DBJ-ROW-${rid}` : undefined);
+      if (!caseId && fSingle) warnings.push(`${at(r)}: 備考に管理ID（DBJ-CASE-…）がないため、管理ID「DBJ-ROW-${rid}」として登録します`);
+      else if (!caseId) errors.push(`${at(r)}: 実車確認記録ですが、備考に管理ID（DBJ-CASE-…）がありません`);
       if (!code) errors.push(`${at(r)}: 実車確認記録ですが、dbj_product_code（確認した品番）が空です`);
       const confirmed = statusIn === "確認済み";
       if (reply && !confirmed) warnings.push(`${at(r)}: 「${statusIn}」なのに customer_reply_allowed = TRUE です（回答は止めます）`);
@@ -261,12 +331,14 @@ export function convertFlat(text: string, opts: { basis?: string; today?: string
     if (format === "19" && approvedRow && (!approvedBy || !approvedAt)) errors.push(`${at(r)}: 確認済み・顧客回答可の行には approved_by・approved_at が必要です`);
     if (specNote && (specNote.length > 30 || /[。．]/.test(specNote)))
       warnings.push(`${at(r)}: spec_note「${specNote.slice(0, 30)}${specNote.length > 30 ? "…" : ""}」は文章のため、装備条件の選択肢として長くなります。「寒冷地仕様|ISS」のように短い語句を | 区切りで入力してください`);
-    const src = reply ? SRC_OK : SRC_NG;
+    const src = TEST ? TEST_SOURCE : reply ? SRC_OK : SRC_NG;
 
     // 同じ車両（主機・補機など複数行）を 1 件にまとめる。ID は内容から決めるため分割取込でも同じになる
     const vKey = [str(r.vehicle_maker), carName, normCode(str(r.model_code)), normCode(str(r.engine_code)), specNote, typeNo ?? "", classNo ?? "", p.from ?? "", p.to ?? ""].join("\u0001");
-    const vid = format === "19" ? `V${hash(vKey)}` : `S${pad(rid)}`;
-    const vStatus = status ?? "収集済み";
+    // テスト取込は ID の接頭辞を分け（T…）、承認済みデータを上書きしない
+    const vid = TEST ? `TV${hash(vKey)}` : format === "19" ? `V${hash(vKey)}` : `S${pad(rid)}`;
+    // テスト取込は適合の承認ではないため、「適合確認済み」とは表示しない（元の status は要件の備考に残す）
+    const vStatus = TEST && status === "適合確認済み" ? "解析済み" : status ?? "収集済み";
     const prev = vehicles.get(vid);
     if (!prev) {
       vehicles.set(vid, {
@@ -279,19 +351,24 @@ export function convertFlat(text: string, opts: { basis?: string; today?: string
     } else {
       // 1 行でも未確認・回答不可があれば、車両全体を低い方にそろえる（安全側）
       if (STATUS_RANK.indexOf(vStatus) < STATUS_RANK.indexOf(prev.status)) prev.status = vStatus;
-      if (src === SRC_NG) prev.source_id = SRC_NG;
+      if (src === SRC_NG && !TEST) prev.source_id = SRC_NG;
       const n = str(r.Source_note);
       if (n && !String(prev.note ?? "").includes(n)) prev.note = [prev.note, n].filter(Boolean).join(" ／ ");
       vehicleRows.get(vid)!.push(r);
     }
     batteries.push({
-      id: `SB${pad(rid)}`, vehicle_id: vid, role: role ?? "主機", category: category ?? catIn, spec_code: specCode ?? rawSpec,
+      id: TEST ? `TB${pad(rid)}` : `SB${pad(rid)}`, vehicle_id: vid, role: role ?? "主機", category: category ?? catIn, spec_code: specCode ?? rawSpec,
       raw_text: rawSpec, qty: qtyIn ? qty : 1, condition: null, status: vStatus, source_id: src,
       // 未承認の行の品番は対応表に入れず、社内参考として要件の備考に残す
-      note: code && !approvedRow ? `元データの DBJ 品番: ${code}（${statusIn || "状態不明"}・${reply ? "回答可" : "回答不可"}。未承認のため対応表には入れていません）` : null,
+      note: TEST
+        ? `テスト取込・元データ ${statusIn || "状態不明"}・回答可否 ${replyRaw || "空欄"}${code ? `・品番 ${code}` : ""}`
+        : !code || approvedRow
+          ? null
+          : `元データの DBJ 品番: ${code}（${statusIn || "状態不明"}・${internalOnly ? "汎用適合 FALSE" : reply ? "回答可" : "回答不可"}。未承認のため対応表には入れていません）`,
     });
 
-    if (code && specCode && category) {
+    // テスト取込では自社商品・対応表を作らない（承認済みの商品データを上書きしないため）
+    if (code && specCode && category && !TEST) {
       if (!own.has(code)) {
         const parsed = parseSpec(specCode);
         const size =
@@ -317,6 +394,11 @@ export function convertFlat(text: string, opts: { basis?: string; today?: string
     }
   }
 
+  const ids = (list: string[]) => `${list.slice(0, 30).join(", ")}${list.length > 30 ? ` ほか ${list.length - 30} 件` : ""}`;
+  if (replyBlank.length) warnings.push(`customer_reply_allowed が空欄の行は FALSE（回答不可）として扱います: ID ${ids(replyBlank)}`);
+  if (replyLoose.length) warnings.push(`customer_reply_allowed は TRUE / FALSE で入力してください（今回は読み替えて取り込みます）: ID ${ids(replyLoose)}`);
+  if (dateLoose.length) warnings.push(`approved_at を YYYY-MM-DD 形式にそろえて登録しました: ID ${ids(dateLoose)}`);
+  if (flagBlank.length) warnings.push(`${FLAG_SINGLE}・${FLAG_GENERAL} が空欄の行は、備考（管理ID・「1 台限定」等の記載）から判定しました: ID ${ids(flagBlank)}`);
   if (singleMonth.length)
     warnings.unshift(`ID ${singleMonth.join(", ")}: 年式が単月表記（例: 2015/04）です。開始・終了が不明なため「その月のみ」として登録しました。他の月の車両は「該当なし」になります`);
 
@@ -370,10 +452,20 @@ export function convertFlat(text: string, opts: { basis?: string; today?: string
   notes.push(`期間の基準は「${BASIS}」として登録しました`);
   notes.push("reply_template は取り込みません。回答文は承認済みの品番から自動生成します（品番との不一致は取込エラーにします）");
   if (cases.length) notes.push(`実車確認記録 ${cases.length} 件は、型式検索で「参考：実車確認記録」として表示し、確定回答・自動返信には使いません`);
+  if (format === "19")
+    notes.push(
+      hasFlags
+        ? `識別フラグ（${FLAG_SINGLE} / ${FLAG_GENERAL}）で汎用適合と実車確認記録を分けました。${FLAG_GENERAL} = TRUE でも、自動回答は「確認済み・customer_reply_allowed = TRUE・承認者あり」の行に限ります`
+        : `識別フラグ列（${FLAG_SINGLE} / ${FLAG_GENERAL}）がないため、備考の管理ID・「1 台限定」等の記載から判定しました`,
+    );
+  if (TEST)
+    notes.unshift(
+      `テスト取込：全行を「汎用適合データ取り込みテスト用（${TEST_SOURCE}）」として登録し、元データの status・customer_reply_allowed にかかわらず顧客回答には使いません。自社商品・対応表は作らず、ID は TV / TB で始まるため、承認済みデータとは混ざりません`,
+    );
 
   const hasGeneral = vehicles.size > 0;
   const data: Partial<Record<DatasetId, Rec[]>> = {
-    sources: hasGeneral ? sources : [],
+    sources: hasGeneral ? (TEST ? testSources : sources) : [],
     own_products: [...own.values()],
     vehicles: [...vehicles.values()],
     vehicle_batteries: batteries,
@@ -387,5 +479,5 @@ export function convertFlat(text: string, opts: { basis?: string; today?: string
     // エラーがある場合・0 件の場合は取込用 CSV を作らない
     if (!errors.length && data[id]!.length) csv[id] = Papa.unparse(data[id]!, { newline: "\n", columns: getDataset(id)!.columns.map((c) => c.name) }) + "\n";
   }
-  return { ok: errors.length === 0, format, rowCount: rows.length, errors, warnings, notes, csv, counts };
+  return { ok: errors.length === 0, format, testOnly: TEST, hasFlags, rowCount: rows.length, errors, warnings, notes, csv, counts };
 }

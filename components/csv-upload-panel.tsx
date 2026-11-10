@@ -89,7 +89,8 @@ export function CSVUploadPanel() {
   const [confirmOpen, setConfirmOpen] = useState(false);
   const [dragging, setDragging] = useState(false);
   const [notice, setNotice] = useState("");
-  const [flat, setFlat] = useState<{ name: string; result: FlatResult; done: string[] } | null>(null);
+  const [flat, setFlat] = useState<{ name: string; text: string; result: FlatResult; done: string[] } | null>(null);
+  const [flatStep, setFlatStep] = useState("");
 
   const ds = getDataset(dataset)!;
   const step = published ? 5 : pending ? 4 : result?.ok ? 3 : csv ? 2 : 1;
@@ -103,6 +104,7 @@ export function CSVUploadPanel() {
     setAllowDelete(false);
     setError("");
     setNotice("");
+    setFlatStep("");
     if (!keepDataset) setDataset("vehicles");
   }
 
@@ -114,7 +116,10 @@ export function CSVUploadPanel() {
     reset();
     // DBJ 既存形式の CSV は定型 CSV 5 種に変換し、順番に取り込めるようにする
     if (isFlatCsv(text)) {
-      setFlat({ name: f.name, result: convertFlat(text), done: [] });
+      // ファイル名に「テスト」等を含む場合は、テスト取込（顧客回答に使わない）を初期選択にする
+      const plain = convertFlat(text);
+      const testOnly = plain.format === "19" && /テスト|test|サンプル|sample|検証/i.test(f.name);
+      setFlat({ name: f.name, text, result: testOnly ? convertFlat(text, { testOnly }) : plain, done: [] });
       return;
     }
     setFlat(null);
@@ -139,13 +144,14 @@ export function CSVUploadPanel() {
     setFileName(s.file);
   }
 
-  function loadFlatStep(id: (typeof FLAT_ORDER)[number]) {
+  function loadFlatStep(id: (typeof FLAT_ORDER)[number], m: Mode = "upsert") {
     if (!flat) return;
     reset();
     setDataset(id);
-    setMode("upsert");
+    setMode(m);
+    setFlatStep(m === "delete" ? `del:${id}` : id);
     setCsv(flat.result.csv[id]!);
-    setFileName(`${flat.name.replace(/\.csv$/i, "")}_${id}.csv`);
+    setFileName(`${flat.name.replace(/\.csv$/i, "")}_${id}${m === "delete" ? "_削除" : ""}.csv`);
   }
 
   // 1 回の送信上限（約 4.5MB）を超えないよう、大きいファイルは分割を案内する
@@ -187,7 +193,7 @@ export function CSVUploadPanel() {
     setConfirmOpen(false);
     if (r.status !== 200) return setError(r.data.error);
     setPublished(pending.version_no);
-    setFlat((x) => (x ? { ...x, done: [...x.done, dataset] } : x));
+    setFlat((x) => (x ? { ...x, done: [...x.done, flatStep || dataset] } : x));
   }
 
   const changes = result ? result.summary.added + result.summary.changed + result.summary.deleted : 0;
@@ -352,9 +358,28 @@ export function CSVUploadPanel() {
               <div className="flex flex-wrap items-center gap-2 border-b border-line px-5 py-3.5">
                 <h2 className="text-sm font-bold">DBJ 形式（{flat.result.format === "19" ? "19 列" : "旧 11 列"}）の CSV を変換しました</h2>
                 {flat.result.ok ? <Badge tone="success">変換 OK</Badge> : <Badge tone="error">エラー {flat.result.errors.length} 件</Badge>}
+                {flat.result.testOnly && <Badge tone="warning">テスト取込</Badge>}
+                {flat.result.hasFlags && <Badge tone="neutral">識別フラグあり</Badge>}
                 <span className="text-xs text-muted">{flat.name} ・ {flat.result.rowCount} 行</span>
               </div>
               <div className="space-y-3 px-5 py-4 text-[13px]">
+                {flat.result.format === "19" && (
+                  <label className={`flex items-start gap-2 rounded-lg border px-3 py-2.5 ${flat.result.testOnly ? "border-warn-line bg-warn-soft" : "border-line"}`}>
+                    <input
+                      type="checkbox"
+                      className="mt-1 h-4 w-4 accent-brand"
+                      checked={flat.result.testOnly}
+                      disabled={flat.done.length > 0 || !!pending}
+                      onChange={(e) => setFlat({ ...flat, result: convertFlat(flat.text, { testOnly: e.target.checked }), done: [] })}
+                    />
+                    <span>
+                      <span className="block font-medium">テスト用として取り込む（顧客回答に使わない）</span>
+                      <span className="block text-xs text-muted">
+                        元データが確認済み・回答可でも、すべて社内参考（解析済み・顧客回答不可）として登録します。ID は TV / TB で始まり、承認済みのデータ・実車確認記録とは分けて管理します（実車確認記録の行は取り込みません）。
+                      </span>
+                    </span>
+                  </label>
+                )}
                 {flat.result.errors.length > 0 && (
                   <AlertMessage variant="error" title="エラーがあるため取り込めません">
                     <ul className="list-disc space-y-0.5 pl-4">
@@ -397,6 +422,29 @@ export function CSVUploadPanel() {
                         </li>
                       ))}
                     </ol>
+                    {flat.result.testOnly && (
+                      <details className="mt-3">
+                        <summary className="cursor-pointer text-xs text-muted">テスト取込したデータを削除する（本番データの取込前に実施）</summary>
+                        <p className="mt-2 mb-2 text-xs text-muted">同じファイルの行を、参照される側の逆順で「削除指定」します。削除も申請・別の承認者による承認が必要です。</p>
+                        <ol className="divide-y divide-line-soft rounded-lg border border-line">
+                          {[...FLAT_ORDER].reverse().filter((id) => flat.result.csv[id]).map((id, i) => (
+                            <li key={id} className="flex items-center gap-3 px-3 py-2">
+                              <span className="w-5 text-center font-bold text-charcoal tnum">{i + 1}</span>
+                              <span className="min-w-0 flex-1">
+                                {getDataset(id)!.label} <span className="text-xs text-muted tnum">{flat.result.counts[id]} 件</span>
+                              </span>
+                              {flat.done.includes(`del:${id}`) ? (
+                                <Badge tone="success">削除済み</Badge>
+                              ) : (
+                                <button className="btn-secondary btn-sm" onClick={() => loadFlatStep(id, "delete")} disabled={!!pending} aria-label={`${getDataset(id)!.label}のテストデータを削除`}>
+                                  削除を読込
+                                </button>
+                              )}
+                            </li>
+                          ))}
+                        </ol>
+                      </details>
+                    )}
                   </div>
                 )}
               </div>
