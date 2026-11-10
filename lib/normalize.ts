@@ -26,8 +26,9 @@ export function parseSpec(input: string): ParsedSpec | null {
   if (m) return { kind: "JIS", spec_code: `${m[1]}${m[2]}${m[3]}${m[4] ?? ""}`, categoryHint: "JIS" };
   m = s.match(/^([K-W])-?(\d{2,3})([LR])?$/);
   if (m) return { kind: "ISS", spec_code: `${m[1]}-${m[2]}${m[3] ?? ""}`, categoryHint: "JIS EFB" };
-  m = s.match(/^LN-?([0-6])(EFB|AGM)?$/);
-  if (m) return { kind: "LN", spec_code: `LN${m[1]}`, categoryHint: m[2] ? `LN ${m[2]}` : undefined };
+  // LN は容量付きの表記（例: LN4 80Ah AGM）も受け付ける。規格表記は LN 番号のみ（容量は原文に残す）。Li-ion 等は対象外
+  m = s.match(/^LN-?([0-6])(?:(\d{2,3})AH)?(EFB|AGM)?$/);
+  if (m) return { kind: "LN", spec_code: `LN${m[1]}`, categoryHint: m[3] ? `LN ${m[3]}` : undefined };
   return null;
 }
 

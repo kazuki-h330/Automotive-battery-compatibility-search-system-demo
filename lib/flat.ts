@@ -124,6 +124,14 @@ export function convertFlat(text: string, opts: { basis?: string; today?: string
   const replyLoose: string[] = [];
   const dateLoose: string[] = [];
   const flagBlank: string[] = [];
+  // 未承認の行の不備（取込は続け、まとめて警告する）
+  const catDerived: string[] = [];
+  const noModel: string[] = [];
+  const noSpec: string[] = [];
+  const noYear: string[] = [];
+  const noRole: string[] = [];
+  const splitModels: string[] = [];
+  const descSpec: string[] = [];
   const at = (r: Rec) => `ID ${str(r.id) || "?"}（${str(r.vehicle_maker)} ${str(r.model_code)}）`;
 
   /** 識別フラグ：TRUE / FALSE / 空欄（未指定） */
@@ -209,7 +217,8 @@ export function convertFlat(text: string, opts: { basis?: string; today?: string
 
   for (const r of rows) {
     const rid = str(r.id);
-    for (const c of ["id", "vehicle_maker", "model_code"]) if (!str(r[c])) errors.push(`${at(r)}: ${c} が空です`);
+    for (const c of ["id", "vehicle_maker"]) if (!str(r[c])) errors.push(`${at(r)}: ${c} が空です`);
+    const modelRaw = str(r.model_code);
     if (rid) {
       if (seenIds.has(rid)) errors.push(`${at(r)}: id が重複しています`);
       seenIds.add(rid);
@@ -223,6 +232,8 @@ export function convertFlat(text: string, opts: { basis?: string; today?: string
     else if (format === "19" && !/^(true|false)$/i.test(replyRaw)) replyLoose.push(`${rid}「${replyRaw}」`);
     // テスト取込では、元データが確認済み・回答可でも顧客回答には使わない（ご回答⑤）
     let reply = TRUE_RE.test(replyRaw) && !TEST;
+    // 顧客回答に使う予定の行（確認済み・回答可）は不備をエラーにする。未承認の行は社内参考として取り込み、不備は警告にまとめる
+    const strict = format === "legacy" || (!TEST && statusIn === "確認済み" && TRUE_RE.test(replyRaw));
     const code = str(r.dbj_product_code);
     const specNote = format === "19" ? str(r.spec_note) : "";
     const carName = (format === "19" ? str(r.car_name) : "") || str(r.vehicle_maker);
@@ -231,8 +242,14 @@ export function convertFlat(text: string, opts: { basis?: string; today?: string
     const typeNo = format === "19" ? regNo(r.type_specification_no, 5, "型式指定番号", r) : null;
     const classNo = format === "19" ? regNo(r.classification_no, 4, "類別区分番号", r) : null;
     const roleIn = format === "19" ? str(r.battery_position) : "";
-    const role = roleIn ? ROLE[roleIn] : "主機";
+    // 「Aux, LN1 50Ah AGM」のように規格表記に補機の明記がある場合は外して読む
+    const rawSpecIn = str(r.required_battery_code);
+    const auxMark = /^\s*aux\s*[,、:：]?\s*/i.test(rawSpecIn);
+    const rawSpec = rawSpecIn.replace(/^\s*aux\s*[,、:：]?\s*/i, "");
+    // 19 列で用途が空欄の場合は推測で「主機」とせず「未確定」とする（旧 11 列は列がないため主機）
+    const role = roleIn ? ROLE[roleIn] : auxMark ? "補機" : format === "19" ? "未確定" : "主機";
     if (roleIn && !role) errors.push(`${at(r)}: battery_position「${roleIn}」は「主機」または「補機」で入力してください`);
+    if (roleIn && role === "主機" && auxMark) warnings.push(`${at(r)}: battery_position は「主機」ですが、規格表記に「Aux」（補機）の記載があります`);
     const qtyIn = format === "19" ? str(r.quantity).normalize("NFKC") : "";
     const qty = qtyIn ? Number(qtyIn) : 1;
     if (qtyIn && !(Number.isInteger(qty) && qty >= 1)) errors.push(`${at(r)}: quantity「${qtyIn}」は 1 以上の整数で入力してください`);
@@ -271,17 +288,25 @@ export function convertFlat(text: string, opts: { basis?: string; today?: string
 
     // カテゴリ・規格（実車確認記録では空欄可）
     const catIn = str(r.battery_type_spec).normalize("NFKC").toUpperCase().replace(/\s+/g, " ");
-    const category = (CATEGORIES as readonly string[]).includes(catIn) ? catIn : undefined;
-    const rawSpec = str(r.required_battery_code);
+    let category = (CATEGORIES as readonly string[]).includes(catIn) ? catIn : undefined;
     let specCode: string | undefined;
+    /** 規格表記を解析できなかった（未承認の行では要件なしで車両のみ登録する） */
+    let specUnparsed = false;
     if (catIn && !category) errors.push(`${at(r)}: battery_type_spec「${r.battery_type_spec}」は未定義です（${CATEGORIES.join(" / ")}）`);
     if (rawSpec) {
       if (category && /^(DIN|EN)/.test(category)) specCode = normCode(rawSpec);
       else {
         const spec = parseSpec(rawSpec);
-        if (!spec) errors.push(`${at(r)}: 規格「${rawSpec}」を解析できません（DIN / EN 規格は battery_type_spec に DIN または EN を指定）`);
-        else {
+        if (!spec) {
+          if (strict) errors.push(`${at(r)}: 規格「${rawSpecIn}」を解析できません（DIN / EN 規格は battery_type_spec に DIN または EN を指定）`);
+          else specUnparsed = true;
+        } else {
           specCode = spec.spec_code;
+          // 区分が空欄の未承認行は、規格表記の形式から区分を決める（JIS 形式 → JIS、アイドリングストップ車用 → JIS EFB、LN → LN / LN EFB / LN AGM）
+          if (!catIn && !strict) {
+            category = spec.categoryHint ?? (spec.kind === "LN" ? "LN" : undefined);
+            if (category) catDerived.push(`${rid}（${rawSpecIn} → ${category}）`);
+          }
           if (category) {
             if (spec.kind === "ISS" && category !== "JIS EFB") warnings.push(`${at(r)}: ${spec.spec_code} はアイドリングストップ車用規格ですが、区分が「${category}」です`);
             else if (spec.kind === "LN" && !category.startsWith("LN")) warnings.push(`${at(r)}: ${spec.spec_code} は LN 規格ですが、区分が「${category}」です`);
@@ -302,6 +327,7 @@ export function convertFlat(text: string, opts: { basis?: string; today?: string
       if (!caseId && fSingle) warnings.push(`${at(r)}: 備考に管理ID（DBJ-CASE-…）がないため、管理ID「DBJ-ROW-${rid}」として登録します`);
       else if (!caseId) errors.push(`${at(r)}: 実車確認記録ですが、備考に管理ID（DBJ-CASE-…）がありません`);
       if (!code) errors.push(`${at(r)}: 実車確認記録ですが、dbj_product_code（確認した品番）が空です`);
+      if (!modelRaw) errors.push(`${at(r)}: 実車確認記録ですが、model_code が空です`);
       const confirmed = statusIn === "確認済み";
       if (reply && !confirmed) warnings.push(`${at(r)}: 「${statusIn}」なのに customer_reply_allowed = TRUE です（回答は止めます）`);
       if (reply && confirmed && (!approvedBy || !approvedAt)) errors.push(`${at(r)}: 回答可の実車確認記録には approved_by・approved_at が必要です`);
@@ -320,52 +346,76 @@ export function convertFlat(text: string, opts: { basis?: string; today?: string
     }
 
     // ---- 汎用の適合データ ----
-    if (!catIn) errors.push(`${at(r)}: battery_type_spec が空です`);
-    if (!rawSpec) errors.push(`${at(r)}: required_battery_code が空です`);
+    if (!modelRaw) {
+      // 型式は検索の鍵のため、空欄の行は登録しない（回答可の行はエラー）
+      if (strict) errors.push(`${at(r)}: model_code が空です`);
+      else noModel.push(rid);
+      continue;
+    }
+    if (!catIn && (strict || (rawSpec && !category && !specUnparsed))) errors.push(`${at(r)}: battery_type_spec が空です`);
+    if (!rawSpec) {
+      if (strict) errors.push(`${at(r)}: required_battery_code が空です`);
+      else noSpec.push(rid);
+    }
+    if (specUnparsed) warnings.push(`${at(r)}: 規格「${rawSpecIn}」は解析できない表記のため、搭載要件は登録せず車両のみ登録します（原文は車両の備考に残します）`);
+    /** 搭載要件を登録できる行か（未承認行で規格が空欄・解析不能なら車両のみ） */
+    const hasReq = !!rawSpec && !specUnparsed && !!category;
     const p = period(r.model_year, r);
     const approvedRow = reply && statusIn === "確認済み";
     if (approvedRow && !p.from) errors.push(`${at(r)}: 顧客回答可の行には年式（適用期間）が必要です`);
-    else if (!p.from) warnings.push(`${at(r)}: 年式が空欄です（期間で絞り込めないため、確認要として扱われます）`);
+    else if (!p.from) noYear.push(rid);
+    if (format === "19" && !roleIn && !auxMark && hasReq) {
+      if (approvedRow) errors.push(`${at(r)}: 顧客回答可の行には battery_position（主機 / 補機）が必要です`);
+      else noRole.push(rid);
+    }
     if (reply && statusIn && statusIn !== "確認済み") warnings.push(`${at(r)}: 「${statusIn}」なのに customer_reply_allowed = TRUE です（回答は止めます）`);
     if (reply && !code) warnings.push(`${at(r)}: 顧客回答可ですが DBJ 品番が空です`);
     if (format === "19" && approvedRow && (!approvedBy || !approvedAt)) errors.push(`${at(r)}: 確認済み・顧客回答可の行には approved_by・approved_at が必要です`);
-    if (specNote && (specNote.length > 30 || /[。．]/.test(specNote)))
-      warnings.push(`${at(r)}: spec_note「${specNote.slice(0, 30)}${specNote.length > 30 ? "…" : ""}」は文章のため、装備条件の選択肢として長くなります。「寒冷地仕様|ISS」のように短い語句を | 区切りで入力してください`);
+    // spec_note が説明文（「動力区分:ガソリン; 排気量cc:660」等）の場合は、装備条件の選択肢にせず「グレード・仕様」として表示する
+    const descriptive = !!specNote && (specNote.length > 30 || /[:：;；。．]/.test(specNote));
+    if (descriptive) descSpec.push(rid);
     const src = TEST ? TEST_SOURCE : reply ? SRC_OK : SRC_NG;
-
-    // 同じ車両（主機・補機など複数行）を 1 件にまとめる。ID は内容から決めるため分割取込でも同じになる
-    const vKey = [str(r.vehicle_maker), carName, normCode(str(r.model_code)), normCode(str(r.engine_code)), specNote, typeNo ?? "", classNo ?? "", p.from ?? "", p.to ?? ""].join("\u0001");
-    // テスト取込は ID の接頭辞を分け（T…）、承認済みデータを上書きしない
-    const vid = TEST ? `TV${hash(vKey)}` : format === "19" ? `V${hash(vKey)}` : `S${pad(rid)}`;
     // テスト取込は適合の承認ではないため、「適合確認済み」とは表示しない（元の status は要件の備考に残す）
     const vStatus = TEST && status === "適合確認済み" ? "解析済み" : status ?? "収集済み";
-    const prev = vehicles.get(vid);
-    if (!prev) {
-      vehicles.set(vid, {
-        id: vid, maker: str(r.vehicle_maker), car_name: carName, model_code: str(r.model_code), engine_code: str(r.engine_code) || null,
-        type_specification_no: typeNo, classification_no: classNo, grade_spec: null, conditions: specNote || null,
-        period_basis: BASIS, period_from: p.from, period_to: p.to, period_raw: str(r.model_year) || null,
-        status: vStatus, source_id: src, note: str(r.Source_note) || null,
+    const vNote = [!hasReq && rawSpecIn ? `搭載要件の原文「${rawSpecIn}」（解析できないため要件は未登録）` : "", str(r.Source_note)].filter(Boolean).join(" ／ ") || null;
+
+    // 1 つのセルに複数の型式（例:「LBA-PG20, LBA-PG20G」）がある場合は、型式ごとに車両を登録する
+    const models = modelRaw.split(/\s*[,、，;；／]\s*/).filter(Boolean);
+    if (models.length > 1) splitModels.push(`${rid}（${models.join(" / ")}）`);
+    models.forEach((model, mi) => {
+      // 同じ車両（主機・補機など複数行）を 1 件にまとめる。ID は内容から決めるため分割取込でも同じになる
+      const vKey = [str(r.vehicle_maker), carName, normCode(model), normCode(str(r.engine_code)), specNote, typeNo ?? "", classNo ?? "", p.from ?? "", p.to ?? ""].join("\u0001");
+      // テスト取込は ID の接頭辞を分け（T…）、承認済みデータを上書きしない
+      const vid = TEST ? `TV${hash(vKey)}` : format === "19" ? `V${hash(vKey)}` : `S${pad(rid)}`;
+      const prev = vehicles.get(vid);
+      if (!prev) {
+        vehicles.set(vid, {
+          id: vid, maker: str(r.vehicle_maker), car_name: carName, model_code: model, engine_code: str(r.engine_code) || null,
+          type_specification_no: typeNo, classification_no: classNo, grade_spec: descriptive ? specNote : null, conditions: descriptive ? null : specNote || null,
+          period_basis: BASIS, period_from: p.from, period_to: p.to, period_raw: str(r.model_year) || null,
+          status: vStatus, source_id: src, note: vNote,
+        });
+        vehicleRows.set(vid, [r]);
+      } else {
+        // 1 行でも未確認・回答不可があれば、車両全体を低い方にそろえる（安全側）
+        if (STATUS_RANK.indexOf(vStatus) < STATUS_RANK.indexOf(prev.status)) prev.status = vStatus;
+        if (src === SRC_NG && !TEST) prev.source_id = SRC_NG;
+        if (vNote && !String(prev.note ?? "").includes(vNote)) prev.note = [prev.note, vNote].filter(Boolean).join(" ／ ");
+        vehicleRows.get(vid)!.push(r);
+      }
+      if (!hasReq) return;
+      batteries.push({
+        id: `${TEST ? "TB" : "SB"}${pad(rid)}${mi ? `-${mi + 1}` : ""}`, vehicle_id: vid, role: role ?? "主機", category, spec_code: specCode ?? rawSpec,
+        raw_text: rawSpecIn, qty: qtyIn ? qty : 1, condition: null, status: vStatus, source_id: src,
+        // 未承認の行の品番は対応表に入れず、社内参考として要件の備考に残す
+        note: TEST
+          ? `テスト取込・元データ ${statusIn || "状態不明"}・回答可否 ${replyRaw || "空欄"}${code ? `・品番 ${code}` : ""}`
+          : !code || approvedRow
+            ? null
+            : `元データの DBJ 品番: ${code}（${statusIn || "状態不明"}・${internalOnly ? "汎用適合 FALSE" : reply ? "回答可" : "回答不可"}。未承認のため対応表には入れていません）`,
       });
-      vehicleRows.set(vid, [r]);
-    } else {
-      // 1 行でも未確認・回答不可があれば、車両全体を低い方にそろえる（安全側）
-      if (STATUS_RANK.indexOf(vStatus) < STATUS_RANK.indexOf(prev.status)) prev.status = vStatus;
-      if (src === SRC_NG && !TEST) prev.source_id = SRC_NG;
-      const n = str(r.Source_note);
-      if (n && !String(prev.note ?? "").includes(n)) prev.note = [prev.note, n].filter(Boolean).join(" ／ ");
-      vehicleRows.get(vid)!.push(r);
-    }
-    batteries.push({
-      id: TEST ? `TB${pad(rid)}` : `SB${pad(rid)}`, vehicle_id: vid, role: role ?? "主機", category: category ?? catIn, spec_code: specCode ?? rawSpec,
-      raw_text: rawSpec, qty: qtyIn ? qty : 1, condition: null, status: vStatus, source_id: src,
-      // 未承認の行の品番は対応表に入れず、社内参考として要件の備考に残す
-      note: TEST
-        ? `テスト取込・元データ ${statusIn || "状態不明"}・回答可否 ${replyRaw || "空欄"}${code ? `・品番 ${code}` : ""}`
-        : !code || approvedRow
-          ? null
-          : `元データの DBJ 品番: ${code}（${statusIn || "状態不明"}・${internalOnly ? "汎用適合 FALSE" : reply ? "回答可" : "回答不可"}。未承認のため対応表には入れていません）`,
     });
+    if (!hasReq) continue;
 
     // テスト取込では自社商品・対応表を作らない（承認済みの商品データを上書きしないため）
     if (code && specCode && category && !TEST) {
@@ -398,6 +448,13 @@ export function convertFlat(text: string, opts: { basis?: string; today?: string
   if (replyBlank.length) warnings.push(`customer_reply_allowed が空欄の行は FALSE（回答不可）として扱います: ID ${ids(replyBlank)}`);
   if (replyLoose.length) warnings.push(`customer_reply_allowed は TRUE / FALSE で入力してください（今回は読み替えて取り込みます）: ID ${ids(replyLoose)}`);
   if (dateLoose.length) warnings.push(`approved_at を YYYY-MM-DD 形式にそろえて登録しました: ID ${ids(dateLoose)}`);
+  if (noModel.length) warnings.push(`model_code（型式）が空欄のため、取り込まなかった行: ID ${ids(noModel)}（型式で検索できないため。回答可の行ではエラーになります）`);
+  if (noSpec.length) warnings.push(`required_battery_code（規格）が空欄のため、搭載要件は登録せず車両のみ登録した行: ID ${ids(noSpec)}（検索すると「搭載バッテリー要件が未登録」で確認要になります）`);
+  if (catDerived.length) warnings.push(`battery_type_spec が空欄のため、規格表記の形式から区分を判定した行: ID ${ids(catDerived)}（回答可の行では空欄をエラーにします）`);
+  if (splitModels.length) warnings.push(`1 つのセルに複数の型式があるため、型式ごとに車両を登録した行: ID ${ids(splitModels)}`);
+  if (noRole.length) warnings.push(`battery_position が空欄のため、用途を「未確定」として登録した行: ID ${ids(noRole)}（主機と推測しません。回答可の行ではエラーになります）`);
+  if (noYear.length) warnings.push(`年式（model_year）が空欄の行: ID ${ids(noYear)}（期間で絞り込めないため、検索結果は確認要になります）`);
+  if (descSpec.length) notes.push(`spec_note が説明文（「動力区分:ガソリン; 排気量cc:660」等）の行は、装備条件の選択肢にせず「グレード・仕様」として表示します: ID ${ids(descSpec)}`);
   if (flagBlank.length) warnings.push(`${FLAG_SINGLE}・${FLAG_GENERAL} が空欄の行は、備考（管理ID・「1 台限定」等の記載）から判定しました: ID ${ids(flagBlank)}`);
   if (singleMonth.length)
     warnings.unshift(`ID ${singleMonth.join(", ")}: 年式が単月表記（例: 2015/04）です。開始・終了が不明なため「その月のみ」として登録しました。他の月の車両は「該当なし」になります`);
@@ -425,7 +482,7 @@ export function convertFlat(text: string, opts: { basis?: string; today?: string
   for (const [model, list] of byModel) {
     if (list.length < 2) continue;
     if (list.length <= 5) notes.push(`型式 ${model} は ${list.length} 件の車両条件（${list.map((v) => v.period_raw ?? "年式なし").join(" / ")}）。初度登録年月・条件で絞り込みます`);
-    if (list.every((v) => v.engine_code === list[0].engine_code && v.conditions === list[0].conditions && specOf(v) === specOf(list[0])))
+    if (list.every((v) => v.engine_code === list[0].engine_code && v.conditions === list[0].conditions && v.grade_spec === list[0].grade_spec && specOf(v) === specOf(list[0])))
       warnings.push(`型式 ${model}: 車両条件どうしで原動機・装備条件・規格が同じで、年月以外では区別できません`);
   }
 
