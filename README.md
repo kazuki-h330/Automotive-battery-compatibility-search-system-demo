@@ -69,8 +69,26 @@ DBJ 様の横長 CSV（1 行 = 1 バッテリー要件）を、定型 CSV（sour
 画面の「CSVマスター管理」にそのままアップロードしても同じ変換が行われます（変換処理は `lib/flat.ts` に集約）。
 
 ```bash
-npm run data:convert -- <入力CSV> <出力フォルダ> [--basis 初度登録]
+npm run data:convert -- <入力CSV> <出力フォルダ> [--basis 初度登録] [--test]
 ```
+
+`--test`（画面では「テスト用として取り込む」）は、DBJ 様の検証用サンプル向けです。元データの status・customer_reply_allowed にかかわらず全行を出典 `SRC-DBJ-TEST`（顧客回答不可）で登録し、自社商品・対応表は作りません。「確認済み」の行も「解析済み」として登録します（元の status・回答可否は要件の備考に残します）。ID は `TV…` / `TB…` で始まり、承認済みデータを上書きしません。実車確認記録の行は取り込みません。ファイル名に「テスト」「サンプル」「検証」等を含む 19 列 CSV は、画面で初期選択になります。本番データの取込前に削除します。
+
+正式な 19 列（2026-11 DBJ 様ご回答④、固定順・すべて文字列、UTF-8 BOM 付き・CRLF が基本）:
+
+`id, vehicle_maker, car_name, model_code, model_year, engine_code, spec_note, battery_type_spec, battery_position, quantity, required_battery_code, dbj_product_code, status, customer_reply_allowed, Source_note, approved_by, approved_at, type_specification_no, classification_no`
+
+拡張列（任意・19 列の後ろ）: `is_single_vehicle_case`, `is_general_fitment`（TRUE / FALSE / 空欄）
+
+| is_single_vehicle_case | is_general_fitment | 扱い |
+| --- | --- | --- |
+| TRUE | FALSE / 空欄 | 実車確認記録（`vehicle_cases`）。管理ID がなければ `DBJ-ROW-<id>` で登録し警告 |
+| FALSE / 空欄 | TRUE | 汎用適合。自動回答は「確認済み・customer_reply_allowed = TRUE・承認者あり」の行のみ |
+| FALSE | FALSE | 社内参考として車両マスターに登録（顧客回答不可・対応表なし） |
+| TRUE | TRUE | エラー |
+| 空欄 | 空欄 | 従来どおり備考（管理ID・「1 台限定」等）から判定 |
+
+フラグと備考が矛盾する場合（汎用 = TRUE なのに備考に管理ID 等）はエラーにします。列の並びが正式順と異なる場合・customer_reply_allowed が TRUE / FALSE 以外・approved_at が YYYY-MM-DD 以外の場合は警告を出します。
 
 `report.md` にエラーと要確認事項を出力します。エラーがある場合は取込用 CSV を出力しません。
 
@@ -80,7 +98,7 @@ npm run data:convert -- <入力CSV> <出力フォルダ> [--basis 初度登録]
 | 11 列（サンプル） | id〜customer_reply_allowed | 車名・承認者などは仮の値。サンプル検証環境用 |
 
 - **規格→自社品番の対応**は、確認済み・顧客回答可・承認者ありの行からのみ作成します。対応は全車両で共有されるため、条件不足・未登録の行で下げません（その車両は車両の確認状態で回答を止め、品番は要件の備考に社内参考として残します）。
-- **実車確認記録**：備考に管理ID（`DBJ-CASE-…`）や「1 台限定」「汎用適合マスターへの取込は禁止」の記載がある行は、汎用の適合データに入れず `vehicle_cases` に登録します。型式検索・管理ID検索で参考表示しますが、確定回答・自動返信には使いません。任意列 `record_scope`（汎用 / 実車確認）で明示もできます。
+- **実車確認記録**：備考に管理ID（`DBJ-CASE-…`）や「1 台限定」「汎用適合マスターへの取込は禁止」の記載がある行は、汎用の適合データに入れず `vehicle_cases` に登録します。型式検索・管理ID検索で参考表示しますが、確定回答・自動返信には使いません。拡張列 `is_single_vehicle_case` / `is_general_fitment` で明示できます（旧仕様の `record_scope` も互換のため受け付けます）。型式指定番号・類別区分番号が一致しても、記録の車両と同一とは判定せず「要確認（スタッフ判断）」とします（DBJ 様ご回答③で正式採用）。
 - **規格区分**：JIS / JIS EFB / LN / LN EFB / LN AGM / DIN / DIN EFB / DIN AGM / EN / EN EFB / EN AGM。DIN・EN の規格表記は原表記を正規化して保持し、LN 等へ読み替えません。
 - 確認済み・顧客回答可の行は、年式（期間）と approved_by・approved_at が必須です。
 - 1 回の取込は約 4MB まで（Vercel の送信上限）。車両データで約 2 万行が目安です。それ以上はメーカー別などに分けます。
