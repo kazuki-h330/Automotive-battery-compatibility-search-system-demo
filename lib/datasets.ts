@@ -83,7 +83,8 @@ export const DATASETS: Dataset[] = [
     columns: [
       { name: "id", label: "要件ID", required: true },
       { name: "vehicle_id", label: "車両ID", required: true, ref: "vehicles" },
-      { name: "role", label: "用途", required: true, enum: ["主機", "補機"] },
+      // 未確定 = 元データに主機・補機の記載がない（推測で主機としない）。判定では確定しない
+      { name: "role", label: "用途", required: true, enum: ["主機", "補機", "未確定"] },
       { name: "category", label: "規格区分", required: true, enum: CATEGORIES },
       { name: "spec_code", label: "規格表記", required: true },
       { name: "raw_text", label: "原文" },

@@ -294,7 +294,7 @@ function CandidateList({ candidates }: { candidates: CandidateView[] }) {
                     {c.batteries.map((b) => (
                       <tr key={b.id}>
                         <td>
-                          <Badge tone={b.role === "補機" ? "info" : "neutral"}>{b.role}</Badge>
+                          <Badge tone={b.role === "補機" ? "info" : b.role === "未確定" ? "warning" : "neutral"}>{b.role === "未確定" ? "用途未確定" : b.role}</Badge>
                           {b.qty > 1 && <div className="mt-1 text-xs font-medium text-warn-ink">×{b.qty} 同時搭載</div>}
                         </td>
                         <td className="whitespace-nowrap">

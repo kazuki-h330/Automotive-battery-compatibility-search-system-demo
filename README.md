@@ -88,6 +88,20 @@ npm run data:convert -- <入力CSV> <出力フォルダ> [--basis 初度登録] 
 | TRUE | TRUE | エラー |
 | 空欄 | 空欄 | 従来どおり備考（管理ID・「1 台限定」等）から判定 |
 
+**未承認の行（status が確認済み以外、または customer_reply_allowed = FALSE、またはテスト取込）は、不備があっても社内参考として取り込み、警告にまとめます**（DBJ 様の汎用適合サンプル 40 件の形式に対応）。確認済み・回答可の行は従来どおりエラーにします。
+
+- battery_type_spec が空欄 → 規格表記の形式から区分を判定（JIS 形式 → JIS、K-42 等 → JIS EFB、LN → LN / LN EFB / LN AGM）
+- required_battery_code が空欄・解析できない表記（Li-ion 等）→ 搭載要件は登録せず車両のみ（原文は車両の備考）
+- model_code が空欄 → 取り込まない（型式で検索できないため）
+- 1 セルに複数の型式（「LBA-PG20, LBA-PG20G」）→ 型式ごとに車両を登録
+- battery_position が空欄 → 用途「未確定」（主機と推測しない。判定では確定しない）。「Aux, LN1 50Ah AGM」は補機
+- spec_note が説明文（「動力区分:ガソリン; 排気量cc:660」等）→ 装備条件の選択肢にせず「グレード・仕様」として表示
+- LN の容量付き表記（LN4 80Ah AGM）は規格 LN4・区分 LN AGM とし、原文を保持
+
+### 閲覧制限
+
+環境変数 `ACCESS_PASSWORD` を設定した環境（DBJ 様サンプル検証環境）では、全画面・API に入口のパスワードを求めます（`proxy.ts`、cookie は HttpOnly・30 日、検索エンジン除外）。Vercel Cron と LINE Webhook は対象外です。利用者ログイン（Phase 1）の実装後に置き換えます。
+
 フラグと備考が矛盾する場合（汎用 = TRUE なのに備考に管理ID 等）はエラーにします。列の並びが正式順と異なる場合・customer_reply_allowed が TRUE / FALSE 以外・approved_at が YYYY-MM-DD 以外の場合は警告を出します。
 
 `report.md` にエラーと要確認事項を出力します。エラーがある場合は取込用 CSV を出力しません。

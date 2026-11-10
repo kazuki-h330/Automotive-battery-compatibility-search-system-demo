@@ -282,18 +282,20 @@ function judgeVehicleGeneral(q: VehicleQuery, d: MasterData): JudgeResult {
   const internalParts: JudgeResult["internalParts"] = [];
   const parts: NonNullable<JudgeResult["answer"]>["parts"] = [];
   let notFound = false;
+  // 候補が複数でも同じ理由は 1 回だけ表示する
+  const add = (r: string) => {
+    if (!reasons.includes(r)) reasons.push(r);
+  };
   for (const c of live) {
-    if (c.status !== "適合確認済み") reasons.push(`車両データが「${c.status}」です（適合未確認）`);
+    if (c.status !== "適合確認済み") add(`車両データが「${c.status}」です（適合未確認）`);
     const vs = sourceOf(d, c.source_id);
-    if (!truthy(vs?.customer_use)) reasons.push(`車両データの出典「${vs?.name}」は顧客回答に利用できません`);
-    if (c.batteries.length === 0) reasons.push("搭載バッテリー要件が未登録です");
+    if (!truthy(vs?.customer_use)) add(`車両データの出典「${vs?.name}」は顧客回答に利用できません`);
+    if (c.batteries.length === 0) add("搭載バッテリー要件が未登録です");
     // 候補が 1 件でも未承認なら確定しない（先頭行だけで判断しない）
     for (const b of c.batteries) {
       const label = batteryLabel(b);
-      const add = (r: string) => {
-        if (!reasons.includes(r)) reasons.push(r);
-      };
       if (b.status !== "適合確認済み") add(`${label}: 搭載要件が「${b.status}」です`);
+      if (b.role === "未確定") add(`${label}: 主機・補機の区別が未確定です`);
       const bs = sourceOf(d, b.source_id);
       if (!truthy(bs?.customer_use)) add(`${label}: 要件の出典「${bs?.name}」は顧客回答に利用できません`);
       if (b.condition) {

@@ -9,6 +9,8 @@ export function AppShell({ children, dbMode }: { children: React.ReactNode; dbMo
   const [open, setOpen] = useState(false);
   const path = usePathname();
   useEffect(() => setOpen(false), [path]);
+  // 閲覧制限のパスワード画面は、メニュー等を出さずに単独で表示する
+  if (path === "/login") return <main id="main">{children}</main>;
 
   return (
     <div className="min-h-screen lg:pl-60">
