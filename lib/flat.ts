@@ -11,6 +11,7 @@
 import Papa from "papaparse";
 import { CATEGORIES, getDataset, type DatasetId } from "./datasets.ts";
 import { parseSpec } from "./normalize.ts";
+import { convertFitment, isFitmentCsv } from "./fitment-import.ts";
 
 export const FLAT_COLUMNS = ["id", "vehicle_maker", "model_code", "model_year", "engine_code", "battery_type_spec", "required_battery_code", "dbj_product_code", "status", "Source_note", "customer_reply_allowed"];
 /** 19 列形式で追加された列 */
@@ -31,11 +32,12 @@ export const SCOPE_COLUMN = "record_scope";
 export const TEST_SOURCE = "SRC-DBJ-TEST";
 
 /** 取込順（参照先が先） */
-export const FLAT_ORDER: DatasetId[] = ["sources", "own_products", "vehicles", "vehicle_batteries", "own_mappings", "vehicle_cases"];
+export const FLAT_ORDER: DatasetId[] = ["sources", "own_products", "vehicles", "vehicle_batteries", "own_mappings", "vehicle_cases", "fitments"];
 
 export type FlatResult = {
   ok: boolean;
-  format: "legacy" | "19";
+  /** fitment = 19 列 v4（DBJ 判定付き）。fitments に登録する */
+  format: "legacy" | "19" | "fitment";
   /** テスト用として取り込む（顧客回答には一切使わない） */
   testOnly: boolean;
   /** 識別フラグ列があるか */
@@ -83,6 +85,7 @@ function normCode(s: string) {
 
 /** DBJ 既存形式の CSV か（1 行目の列で判定） */
 export function isFlatCsv(text: string) {
+  if (isFitmentCsv(text)) return true;
   const headers = clean(text).split(/\r?\n/, 1)[0].split(",").map((h) => h.trim().replace(/^"|"$/g, ""));
   return FLAT_COLUMNS.every((c) => headers.includes(c));
 }
@@ -91,6 +94,8 @@ export function convertFlat(text: string, opts: { basis?: string; today?: string
   const BASIS = opts.basis ?? "初度登録";
   const TODAY = opts.today ?? new Date().toISOString().slice(0, 10);
   const TEST = !!opts.testOnly;
+  // 19 列 v4（DBJ 判定付き）は判定済みのデータとしてそのまま登録する（テスト取込の指定は使わない）
+  if (isFitmentCsv(text)) return convertFitment(text);
   const { data: rows, meta, errors: parseErrors } = Papa.parse<Rec>(clean(text), { header: true, skipEmptyLines: "greedy", delimiter: "," });
   const fields = (meta.fields ?? []).map((f) => f.trim());
 
@@ -528,6 +533,8 @@ export function convertFlat(text: string, opts: { basis?: string; today?: string
     vehicle_batteries: batteries,
     own_mappings: mappings,
     vehicle_cases: cases,
+    // 19 列 v4（判定付き）は convertFitment で扱う。旧形式・19 列では作らない
+    fitments: [],
   };
   const csv: FlatResult["csv"] = {};
   const counts: FlatResult["counts"] = {};

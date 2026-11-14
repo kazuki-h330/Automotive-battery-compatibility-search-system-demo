@@ -3,6 +3,7 @@
 
 import { isMonth, normModel, parseSpec, partKey, splitList, withoutPrefix, type ParsedSpec } from "./normalize";
 import type { Row } from "./db";
+import type { FitmentOption } from "./fitment";
 
 export type State = "confirmed" | "needs_check" | "not_found";
 
@@ -22,7 +23,9 @@ export type VehicleQuery = {
   modelCode: string;
   regYm?: string; // 初度登録年月 'YYYY-MM'
   engineCode?: string;
-  conditions?: string[] | null; // null = 未回答。[] = 該当なし（標準）
+  conditions?: string[] | null; // null = 未回答。[] = 該当なし（標準）。DBJ 適合データでは「仕様」の選択
+  carName?: string; // DBJ 適合データ：同じ型式で車名が分かれる場合の選択
+  currentBattery?: string; // DBJ 適合データ：今ついているバッテリー（純正品番）の選択
 };
 
 export type MappingView = {
@@ -54,12 +57,30 @@ export type JudgeResult = {
   missing: string[];
   hints: string[];
   candidates: CandidateView[];
-  answer?: { parts: { role: string; part_no: string; name?: string; qty: number }[]; template: string; conditions?: string[] };
+  answer?: {
+    parts: { role: string; part_no: string; name?: string; qty: number }[];
+    template: string;
+    conditions?: string[];
+    /** DBJ 適合データ：お客様に表示する文（省略せずそのまま）・補足表示（小さく表示）・搭載位置 */
+    notice?: string;
+    subNotice?: string;
+    position?: string;
+  };
   internalParts: { role: string; part_no: string; status: string; customer_use: boolean }[];
   trace: { input: unknown; normalized: string; steps: string[] };
   product?: ProductResultExtra;
   /** 参考：実車確認記録（記録の車両 1 台に限る。自動回答には使わない） */
   cases?: Row[];
+  /** DBJ 適合データ（判定付き）の該当行（社内表示用。Source_note を含む） */
+  fitments?: Row[];
+  /** 回答が分かれる場合に選ぶ項目 */
+  options?: FitmentOption[];
+  /** DBJ判定（A / 条件付きA / B / 一部適合 / C / D） */
+  judgment?: string;
+  /** 現車確認：適合品は返さず、ラベル写真をお願いしてスタッフに引き継ぐ */
+  photoRequest?: boolean;
+  /** 確定以外でお客様に表示してよい文（ラベル写真のお願い） */
+  customerText?: string;
 };
 
 const sourceOf = (d: MasterData, id: string) => d.sources.find((s) => s.id === id);

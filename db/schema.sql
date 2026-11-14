@@ -192,3 +192,29 @@ CREATE TABLE IF NOT EXISTS line_sessions (
   handoff    boolean NOT NULL DEFAULT false,
   updated_at timestamptz NOT NULL DEFAULT now()
 );
+
+-- DBJ 適合データ（19 列 v4・判定付き）。DBJ 様の判定・表示文をそのまま保持し、検索で表示する
+CREATE TABLE IF NOT EXISTS fitments (
+  id                     text PRIMARY KEY,   -- 元の id（寒冷地仕様は「-C」付き）
+  maker                  text NOT NULL,
+  car_name               text,
+  model_code             text,               -- 空欄 = 型式なし（車名で照合）。「#」は数字のワイルドカード
+  engine_code            text,
+  spec_note              text,
+  variant                text,               -- spec_note の「仕様:」（標準仕様・寒冷地仕様・4WD 等）
+  battery_type_spec      text,
+  battery_position       text,
+  quantity               integer,
+  required_battery_code  text,
+  dbj_product_code       text,
+  status                 text NOT NULL,      -- 承認済み / 現車確認待ち
+  customer_reply_allowed boolean NOT NULL DEFAULT false,
+  judgment               text NOT NULL,      -- A / 条件付きA / B / 一部適合 / C / D / 現車確認待ち
+  display_text           text NOT NULL,
+  display_note           text,
+  source_note            text,               -- 社内用（お客様には表示しない）
+  approved_by            text,
+  approved_at            text,
+  type_specification_no  text,
+  classification_no      text
+);

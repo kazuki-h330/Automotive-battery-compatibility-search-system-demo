@@ -1,7 +1,9 @@
 import { createHash } from "node:crypto";
 import { db } from "@/lib/db";
-import { judgeVehicle, type VehicleQuery } from "@/lib/judge";
-import { getSetting, loadMasterFor, logAnswer } from "@/lib/repo";
+import type { VehicleQuery } from "@/lib/judge";
+import { getSetting, logAnswer } from "@/lib/repo";
+import { searchVehicle } from "@/lib/search";
+import { PHOTO_TEXT } from "@/lib/fitment";
 import { fail, ok } from "@/lib/api";
 import { DBJ_SAMPLE } from "@/lib/profile";
 
@@ -81,7 +83,7 @@ export async function POST(req: Request) {
   // 判定に失敗しても無応答にせず、障害時の案内を返す（再送は二重回答防止で破棄されるため）
   let result;
   try {
-    result = judgeVehicle(q, await loadMasterFor(q.modelCode));
+    result = await searchVehicle(q);
     await logAnswer("line-demo", result);
   } catch (e) {
     console.error(e);
@@ -91,7 +93,25 @@ export async function POST(req: Request) {
   }
   log.push(`共通判定: ${result.state}（${result.headline}）`);
 
+  // 5-2) 現車確認（DBJ 適合データ）：適合品は返さず、表示文（ラベル写真のお願い）を送ってスタッフに引き継ぐ
+  if (result.photoRequest || (result.options?.length && result.options.every((o) => o.key === "currentBattery"))) {
+    replies.push({ text: result.customerText ?? PHOTO_TEXT });
+    await handoff(`現車確認（ラベル写真の受付）: ${result.headline}`);
+    return done("photo_request");
+  }
+
   // 6) 追加質問で解消できる不足は質問する（オプション A）
+  // DBJ 適合データで回答が分かれる場合は「仕様」を選択肢で確認する（他の項目はスタッフへ）
+  if (result.state === "needs_check" && result.options?.length) {
+    const opt = result.options.find((o) => o.key === "variant");
+    if (!opt) {
+      await handoff(`${result.options.map((o) => o.label).join("・")}で回答が分かれる`);
+      return done("handoff");
+    }
+    replies.push({ text: "お車の仕様を選んでください。", quickReplies: opt.values.map((v) => v || "記載なし"), ask: "conditions" });
+    log.push(`回答が分かれる → 仕様を追加質問（${opt.values.length} 通り）`);
+    return done("ask_more");
+  }
   if (result.state === "needs_check" && result.missing.length) {
     const m = result.missing[0];
     if (m.startsWith("装備条件")) {

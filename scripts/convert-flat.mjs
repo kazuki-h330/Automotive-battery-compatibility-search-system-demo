@@ -19,7 +19,9 @@ for (const [name, csv] of Object.entries(r.csv)) writeFileSync(path.join(outDir,
 const report = [
   `# 変換レポート: ${path.basename(input)}`,
   "",
-  `入力 ${r.rowCount} 行 → 車両 ${r.counts.vehicles ?? 0} / 搭載要件 ${r.counts.vehicle_batteries ?? 0} / 自社品番 ${r.counts.own_products ?? 0} / 自社対応 ${r.counts.own_mappings ?? 0} / 出典 ${r.counts.sources ?? 0} / 実車確認記録 ${r.counts.vehicle_cases ?? 0}（${r.format === "19" ? "19 列形式" : "旧形式"}）`,
+  r.format === "fitment"
+    ? `入力 ${r.rowCount} 行 → DBJ 適合データ（判定付き） ${r.counts.fitments ?? 0} 行（19 列 v4）`
+  : `入力 ${r.rowCount} 行 → 車両 ${r.counts.vehicles ?? 0} / 搭載要件 ${r.counts.vehicle_batteries ?? 0} / 自社品番 ${r.counts.own_products ?? 0} / 自社対応 ${r.counts.own_mappings ?? 0} / 出典 ${r.counts.sources ?? 0} / 実車確認記録 ${r.counts.vehicle_cases ?? 0}（${r.format === "19" ? "19 列形式" : "旧形式"}）`,
   "",
   `## エラー（${r.errors.length} 件・取込不可）`,
   ...(r.errors.length ? r.errors.map((e) => `- ${e}`) : ["- なし"]),

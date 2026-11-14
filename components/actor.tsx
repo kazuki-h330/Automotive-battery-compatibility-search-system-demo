@@ -42,7 +42,14 @@ export const actorPayload = (a: Actor) => ({ name: a.name, role: a.role });
 export async function postJson<T = any>(url: string, body: unknown): Promise<{ status: number; data: T }> {
   let res: Response;
   try {
-    res = await fetch(url, { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify(body) });
+    const json = JSON.stringify(body);
+    // 大きな CSV（例: DBJ 適合データ 2 万行・約 22MB）は gzip で圧縮して送る（Vercel の 1 リクエスト上限 4.5MB 対策）
+    if (json.length > 1_000_000 && typeof CompressionStream !== "undefined") {
+      const gz = await new Response(new Blob([json]).stream().pipeThrough(new CompressionStream("gzip"))).arrayBuffer();
+      res = await fetch(url, { method: "POST", headers: { "Content-Type": "application/json", "X-Body-Encoding": "gzip" }, body: gz });
+    } else if (json.length > 4_000_000) {
+      return { status: 0, data: { error: "ファイルが大きいため送信できません（このブラウザは圧縮送信に対応していません。最新の Chrome / Edge でお試しください）" } as T };
+    } else res = await fetch(url, { method: "POST", headers: { "Content-Type": "application/json" }, body: json });
   } catch {
     // 通信断でも呼び出し側の処理中表示が残らないよう、エラーとして返す
     return { status: 0, data: { error: "通信できませんでした。接続を確認して再度お試しください" } as T };

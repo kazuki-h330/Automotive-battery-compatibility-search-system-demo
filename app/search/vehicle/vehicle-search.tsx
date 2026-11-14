@@ -10,6 +10,8 @@ import { ModeNotice, ResultCard, TraceDetails } from "@/components/result-card";
 import { ExampleChips, Field, SearchForm } from "@/components/search-form";
 import { ApprovalStatusBadge, Badge, CustomerUseBadge } from "@/components/status-badge";
 import type { CandidateView, JudgeResult, VehicleQuery } from "@/lib/judge";
+import type { FitmentOption } from "@/lib/fitment";
+import type { Row } from "@/lib/db";
 import { DBJ_SAMPLE } from "@/lib/profile";
 
 const EXAMPLES: { label: string; q: VehicleQuery }[] = DBJ_SAMPLE ? [
@@ -59,6 +61,7 @@ export function VehicleSearch({ makers, conditions, initialModel, initialReg }: 
   const [error, setError] = useState("");
   const [fieldError, setFieldError] = useState("");
   const [res, setRes] = useState<Res | null>(null);
+  const [last, setLast] = useState<VehicleQuery | null>(null);
 
   function clear() {
     setMaker("");
@@ -90,6 +93,23 @@ export function VehicleSearch({ makers, conditions, initialModel, initialReg }: 
       return;
     }
     setFieldError("");
+    await exec(query);
+  }
+
+  /** DBJ 適合データで回答が分かれた場合：選んだ条件を加えて再検索する */
+  function refine(key: FitmentOption["key"], value: string) {
+    if (!last) return;
+    const q: VehicleQuery = { ...last };
+    if (key === "variant") q.conditions = [value || "記載なし"];
+    else if (key === "maker") (q.maker = value), setMaker(value);
+    else if (key === "engineCode") (q.engineCode = value), setEngineCode(value);
+    else if (key === "currentBattery") q.currentBattery = value;
+    else q.carName = value;
+    exec(q);
+  }
+
+  async function exec(query: VehicleQuery) {
+    setLast(query);
     setLoading(true);
     setError("");
     const r = await postJson<Res & { error?: string }>("/api/search/vehicle", { query, actor: actorPayload(actor) });
@@ -212,7 +232,10 @@ export function VehicleSearch({ makers, conditions, initialModel, initialReg }: 
         )}
         {!loading && !error && res && (
           <>
-            <ResultCard r={res.result} kindLabel="車両適合" />
+            <ResultCard r={res.result} kindLabel={res.result.fitments ? "DBJ 適合データ" : "車両適合"}>
+              {res.result.options && res.result.options.length > 0 && <FitmentOptions options={res.result.options} onPick={refine} />}
+            </ResultCard>
+            {res.result.fitments && res.result.fitments.length > 0 && <FitmentList rows={res.result.fitments} />}
             {res.result.candidates.length > 0 && <CandidateList candidates={res.result.candidates} />}
             <TraceDetails r={res.result} versions={res.versions} />
           </>
@@ -328,6 +351,82 @@ function CandidateList({ candidates }: { candidates: CandidateView[] }) {
           </li>
         ))}
       </ul>
+    </section>
+  );
+}
+
+/** 回答が分かれる場合の条件選択（選ぶと再検索） */
+function FitmentOptions({ options, onPick }: { options: FitmentOption[]; onPick: (key: FitmentOption["key"], value: string) => void }) {
+  return (
+    <div className="space-y-3 border-t border-line px-5 py-4">
+      {options.map((o) => (
+        <div key={o.key}>
+          <div className="mb-1.5 text-[13px] font-bold">{o.label}を選んでください</div>
+          <div className="flex flex-wrap gap-2">
+            {o.values.map((v) => (
+              <button key={v || "-"} type="button" className="btn-secondary btn-sm" onClick={() => onPick(o.key, v)}>
+                {v || "記載なし"}
+              </button>
+            ))}
+          </div>
+        </div>
+      ))}
+    </div>
+  );
+}
+
+const yes = (v: unknown) => v === true || v === "true" || v === "t";
+
+/** DBJ 適合データの該当行（社内表示。Source_note は折りたたみ） */
+function FitmentList({ rows }: { rows: Row[] }) {
+  return (
+    <section className="card overflow-hidden">
+      <div className="flex flex-wrap items-center justify-between gap-2 border-b border-line px-5 py-3.5">
+        <h2 className="text-sm font-bold">DBJ 適合データの該当行</h2>
+        <span className="text-xs text-muted">{rows.length} 行{rows.length >= 2000 ? "（上限）" : ""}</span>
+      </div>
+      <ul className="divide-y divide-line-soft">
+        {rows.slice(0, 200).map((r) => (
+          <li key={r.id} className="px-5 py-4">
+            <div className="flex flex-wrap items-start justify-between gap-2">
+              <div className="min-w-0">
+                <div className="flex flex-wrap items-center gap-2">
+                  <span className="text-sm font-bold">{r.car_name ?? "（車名なし）"}</span>
+                  <span className="font-mono text-[13px] text-ink/80">{r.model_code ?? "型式なし"}</span>
+                  {r.variant && <Badge tone="charcoal">{r.variant}</Badge>}
+                  <span className="text-[11px] text-muted">ID {r.id}</span>
+                </div>
+                <div className="mt-1 flex flex-wrap gap-x-4 gap-y-0.5 text-xs text-muted">
+                  <span>{r.maker}</span>
+                  <span>原動機 {r.engine_code ?? "—"}</span>
+                  <span>純正 {r.required_battery_code ?? "—"}{r.battery_type_spec ? `（${r.battery_type_spec}）` : ""}</span>
+                  <span>搭載位置 {r.battery_position ?? "—"}</span>
+                  <span>個数 {r.quantity ?? "—"}</span>
+                </div>
+              </div>
+              <div className="flex flex-col items-end gap-1">
+                <Badge tone={r.judgment === "C" || r.judgment === "D" ? "neutral" : r.judgment === "現車確認待ち" ? "warning" : "success"}>DBJ判定 {r.judgment}</Badge>
+                <CustomerUseBadge allowed={yes(r.customer_reply_allowed) && r.status === "承認済み"} />
+              </div>
+            </div>
+            <div className="mt-2 text-[13px]">
+              <span className="text-muted">適合品番 </span>
+              <span className="font-mono font-medium text-charcoal">{r.dbj_product_code ?? "—"}</span>
+            </div>
+            <p className="mt-1 text-[13px] leading-6 text-ink/85">{r.display_text}</p>
+            {r.display_note && <p className="text-xs text-muted">{r.display_note}</p>}
+            {(r.spec_note || r.source_note) && (
+              <details className="mt-1 text-xs leading-6 text-ink/80">
+                <summary className="cursor-pointer text-brand">社内情報を表示（お客様には表示しない）</summary>
+                {r.spec_note && <p><span className="font-medium">spec_note：</span>{r.spec_note}</p>}
+                {r.source_note && <p className="break-all"><span className="font-medium">Source_note：</span>{r.source_note}</p>}
+                <p>承認: {r.approved_by ?? "—"}（{r.approved_at ?? "—"}）・状態: {r.status}</p>
+              </details>
+            )}
+          </li>
+        ))}
+      </ul>
+      {rows.length > 200 && <p className="border-t border-line px-5 py-2 text-xs text-muted">先頭 200 行を表示しています。条件を追加して絞り込んでください。</p>}
     </section>
   );
 }
