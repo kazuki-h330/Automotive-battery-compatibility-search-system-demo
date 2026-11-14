@@ -18,12 +18,12 @@ const HEAD = {
 };
 const ICON_COLOR = { confirmed: "text-ok", needs_check: "text-warn", not_found: "text-bad" };
 
-export function CopyAnswer({ text }: { text: string }) {
+export function CopyAnswer({ text, label = "顧客向け定型回答文" }: { text: string; label?: string }) {
   const [copied, setCopied] = useState(false);
   return (
     <div className="overflow-hidden rounded-lg border border-line">
       <div className="flex items-center justify-between border-b border-line bg-canvas px-3 py-2">
-        <span className="text-xs font-medium text-muted">顧客向け定型回答文</span>
+        <span className="text-xs font-medium text-muted">{label}</span>
         <button
           type="button"
           className={copied ? "btn-secondary btn-sm text-ok" : "btn-primary btn-sm"}
@@ -65,6 +65,7 @@ export function ResultCard({
           <div className="flex flex-wrap items-center gap-2">
             <span className={`text-[13px] font-bold ${ICON_COLOR[r.state]}`}>{meta.label}</span>
             <Badge tone="charcoal">{kindLabel}</Badge>
+            {r.judgment && <Badge tone={r.judgment === "C" || r.judgment === "D" ? "neutral" : "success"}>DBJ判定 {r.judgment}</Badge>}
           </div>
           <div className="mt-0.5 text-base font-bold text-ink">{r.headline}</div>
         </div>
@@ -110,10 +111,25 @@ export function ResultCard({
         </ul>
       )}
 
+      {r.state !== "confirmed" && r.customerText && (
+        <div className="space-y-3 border-t border-line px-5 py-4">
+          <div className="text-[13px] font-bold">お客様への表示（適合品は返しません）</div>
+          <CopyAnswer text={r.customerText} label="お客様への案内文" />
+          {r.photoRequest && <p className="text-xs text-muted">ラベル写真が届いたら、スタッフが品番を確認して回答してください。LINE では自動でスタッフに引き継ぎます。</p>}
+        </div>
+      )}
+
       {r.state === "confirmed" && r.answer && (
         <div className="space-y-4 border-t border-line px-5 py-4">
-          <div>
-            <div className="mb-2 text-[13px] font-bold">承認済みの自社品番</div>
+          {r.answer.notice && (
+            <div className="rounded-lg border border-line bg-canvas px-4 py-3">
+              <div className="mb-1 text-[11px] font-medium text-muted">お客様に表示する文（省略せずそのまま表示）</div>
+              <p className="text-sm leading-7 whitespace-pre-wrap">{r.answer.notice}</p>
+              {r.answer.subNotice && <p className="mt-1 text-xs leading-6 text-muted">{r.answer.subNotice}</p>}
+            </div>
+          )}
+          {r.answer.parts.length > 0 && <div>
+            <div className="mb-2 text-[13px] font-bold">{r.judgment ? "適合品番" : "承認済みの自社品番"}</div>
             <div className="flex flex-wrap gap-3">
               {r.answer.parts.map((p, i) => (
                 <div key={i} className="min-w-44 rounded-lg border border-ok-line bg-surface px-4 py-3">
@@ -126,7 +142,7 @@ export function ResultCard({
                 </div>
               ))}
             </div>
-          </div>
+          </div>}
           {r.answer.conditions && r.answer.conditions.length > 0 && (
             <div>
               <div className="mb-2 text-[13px] font-bold">必要条件</div>

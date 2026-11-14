@@ -154,12 +154,13 @@ export function CSVUploadPanel() {
     setFileName(`${flat.name.replace(/\.csv$/i, "")}_${id}${m === "delete" ? "_削除" : ""}.csv`);
   }
 
-  // 1 回の送信上限（約 4.5MB）を超えないよう、大きいファイルは分割を案内する
-  const MAX_BYTES = 4_000_000;
+  // 1 回の送信上限（約 4.5MB）を超えないよう、大きいファイルは分割を案内する。
+  // 圧縮送信（gzip）に対応したブラウザでは 40MB まで（DBJ 適合データ 約 25MB → 送信 約 0.7MB）
+  const MAX_BYTES = typeof CompressionStream !== "undefined" ? 40_000_000 : 4_000_000;
   const tooLarge = () => {
     const bytes = new Blob([csv]).size;
     if (bytes <= MAX_BYTES) return false;
-    setError(`ファイルが大きすぎます（${(bytes / 1_000_000).toFixed(1)}MB）。1 ファイル約 4MB まで（目安: 車両データで約 2 万行）です。メーカー別などに分けて取り込んでください`);
+    setError(`ファイルが大きすぎます（${(bytes / 1_000_000).toFixed(1)}MB）。1 ファイル約 ${MAX_BYTES / 1_000_000}MB までです。メーカー別などに分けて取り込んでください`);
     return true;
   };
 
@@ -356,7 +357,7 @@ export function CSVUploadPanel() {
           {flat && (
             <section className="card overflow-hidden">
               <div className="flex flex-wrap items-center gap-2 border-b border-line px-5 py-3.5">
-                <h2 className="text-sm font-bold">DBJ 形式（{flat.result.format === "19" ? "19 列" : "旧 11 列"}）の CSV を変換しました</h2>
+                <h2 className="text-sm font-bold">DBJ 形式（{flat.result.format === "fitment" ? "19 列 v4・判定付き" : flat.result.format === "19" ? "19 列" : "旧 11 列"}）の CSV を変換しました</h2>
                 {flat.result.ok ? <Badge tone="success">変換 OK</Badge> : <Badge tone="error">エラー {flat.result.errors.length} 件</Badge>}
                 {flat.result.testOnly && <Badge tone="warning">テスト取込</Badge>}
                 {flat.result.hasFlags && <Badge tone="neutral">識別フラグあり</Badge>}

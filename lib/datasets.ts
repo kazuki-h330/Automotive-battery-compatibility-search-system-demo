@@ -7,6 +7,11 @@ export const PRODUCT_STATUS = ["収集済み", "解析済み"] as const;
 export const MAPPING_STATUS = ["未確認", "自社対応確認済み"] as const;
 export const PERIOD_BASIS = ["初度登録", "販売", "製造", "不明"] as const;
 export const CASE_STATUS = ["実車確認済み", "未確認"] as const;
+/** DBJ 適合データ（v4・判定付き）の status と DBJ 判定 */
+export const FITMENT_STATUS = ["承認済み", "現車確認待ち"] as const;
+export const FITMENT_JUDGMENTS = ["A", "条件付きA", "B", "一部適合", "C", "D", "現車確認待ち"] as const;
+/** 適合品番を返す判定（C・D は「適合する互換製品なし」） */
+export const PRODUCT_JUDGMENTS = ["A", "条件付きA", "B", "一部適合"] as const;
 
 export type ColType = "text" | "int" | "num" | "bool" | "ym";
 export type Column = {
@@ -25,7 +30,8 @@ export type DatasetId =
   | "products"
   | "own_products"
   | "own_mappings"
-  | "vehicle_cases";
+  | "vehicle_cases"
+  | "fitments";
 
 export type Dataset = {
   id: DatasetId;
@@ -189,6 +195,36 @@ export const DATASETS: Dataset[] = [
       { name: "source_note", label: "出典・根拠" },
       { name: "approved_by", label: "承認者" },
       { name: "approved_at", label: "承認日" },
+    ],
+  },
+  {
+    id: "fitments",
+    label: "DBJ 適合データ（判定付き）",
+    description: "DBJ 様が判定・承認した適合データ（19 列 v4）。1 行 = 1 車両仕様。お客様には適合品番・表示文・補足表示・搭載位置のみ表示する",
+    key: "id",
+    columns: [
+      { name: "id", label: "ID", required: true },
+      { name: "maker", label: "メーカー", required: true },
+      { name: "car_name", label: "車名" },
+      { name: "model_code", label: "型式" },
+      { name: "engine_code", label: "原動機型式" },
+      { name: "spec_note", label: "仕様・注意事項（原文）" },
+      { name: "variant", label: "仕様" },
+      { name: "battery_type_spec", label: "純正の規格" },
+      { name: "battery_position", label: "搭載位置" },
+      { name: "quantity", label: "個数", type: "int" },
+      { name: "required_battery_code", label: "純正品番" },
+      { name: "dbj_product_code", label: "適合品番" },
+      { name: "status", label: "状態", required: true, enum: FITMENT_STATUS },
+      { name: "customer_reply_allowed", label: "自動回答可", type: "bool", required: true },
+      { name: "judgment", label: "DBJ判定", required: true, enum: FITMENT_JUDGMENTS },
+      { name: "display_text", label: "表示文", required: true },
+      { name: "display_note", label: "補足表示" },
+      { name: "source_note", label: "社内情報（Source_note）" },
+      { name: "approved_by", label: "承認者" },
+      { name: "approved_at", label: "承認日" },
+      { name: "type_specification_no", label: "型式指定番号" },
+      { name: "classification_no", label: "類別区分番号" },
     ],
   },
 ];

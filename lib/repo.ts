@@ -5,6 +5,7 @@ import { DATASETS, getDataset, referencedBy, type DatasetId } from "./datasets";
 import { toCsv, validateImport, type DiffItem, type ImportMode, type ValidationResult } from "./csv";
 import { normModel, withoutPrefix } from "./normalize";
 import type { JudgeResult, MasterData } from "./judge";
+import { nameKey } from "./fitment";
 
 export type Actor = { name: string; role: "staff" | "approver" | "viewer" };
 
@@ -20,7 +21,9 @@ export async function loadAllLive() {
 }
 
 export async function loadMaster(): Promise<MasterData> {
-  const all = await loadAllLive();
+  // DBJ 適合データ（判定付き）は件数が多く、比較画面では使わないため読み込まない
+  const ids: DatasetId[] = ["vehicles", "vehicle_batteries", "own_mappings", "sources", "own_products", "products", "vehicle_cases"];
+  const all = Object.fromEntries(await Promise.all(ids.map(async (id) => [id, await loadDataset(id)] as const))) as Record<DatasetId, Row[]>;
   return {
     vehicles: all.vehicles,
     batteries: all.vehicle_batteries,
@@ -57,10 +60,34 @@ export async function loadMasterFor(text: string): Promise<MasterData> {
   return { vehicles, batteries, mappings, sources, ownProducts, products, cases };
 }
 
+/**
+ * DBJ 適合データ（判定付き）から、検索 1 件分の行を読む。
+ * 型式の一致・「#」（数字のワイルドカード）・接頭辞違い（ヒント用の末尾一致）と、型式のない車の車名の前方一致。
+ * 最終的な一致は lib/fitment.ts で再確認する
+ */
+export async function loadFitmentsFor(text: string) {
+  const norm = normModel(text);
+  const tail = withoutPrefix(norm);
+  const name = nameKey(text);
+  if (!norm) return [];
+  const F_MODEL = MODEL_SQL;
+  return db().query(
+    `SELECT * FROM fitments
+      WHERE (model_code IS NOT NULL AND model_code <> '' AND (
+              ${F_MODEL} = $1::text
+              OR ($2::text <> '' AND ${F_MODEL} LIKE '%' || $2::text)
+              OR (model_code LIKE '%#%' AND $1::text LIKE replace(${F_MODEL}, '#', '%'))))
+         OR ((model_code IS NULL OR model_code = '') AND $3::text <> ''
+              AND upper(regexp_replace(normalize(coalesce(car_name, ''), NFKC), '\\s', '', 'g')) LIKE $3::text || '%')
+      ORDER BY id LIMIT 2000`,
+    [norm, tail.length >= 2 ? likeEscape(tail) : "", name.length >= 2 ? likeEscape(name) : ""],
+  );
+}
+
 /** 画面の選択肢用（全件を読まない） */
 export async function vehicleChoices() {
   const [makers, conds] = await Promise.all([
-    db().query<{ maker: string }>(`SELECT DISTINCT maker FROM vehicles ORDER BY maker`),
+    db().query<{ maker: string }>(`SELECT maker FROM vehicles UNION SELECT maker FROM fitments ORDER BY maker`),
     db().query<{ conditions: string }>(`SELECT DISTINCT conditions FROM vehicles WHERE conditions IS NOT NULL AND conditions <> ''`),
   ]);
   return { makers: makers.map((r) => r.maker), conditions: conds.map((r) => r.conditions) };
